@@ -4,204 +4,41 @@ services:
     platform: linux/amd64
     container_name: stalker-db
     restart: unless-stopped
-
     environment:
       MYSQL_ROOT_PASSWORD: "MinistraDb2026Q7v9K2m4"
       MYSQL_ROOT_HOST: "%"
       MYSQL_DATABASE: "stalker_db"
-
     command:
       - "--sql-mode=NO_ENGINE_SUBSTITUTION"
-
     volumes:
-      - "/mnt/zfs-01-ssd/apps/ministra/mysql:/var/lib/mysql"
-
+      - stalker_mysql:/var/lib/mysql
     networks:
       - stalker-net
 
   stalker-portal:
-    image: slaserx/stalker-portal:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mac-portal:local
     platform: linux/amd64
     container_name: stalker-portal
     restart: unless-stopped
-
-    environment:
-      STALKER_DB_PASSWORD: "MinistraDb2026Q7v9K2m4"
-      DEBIAN_FRONTEND: "noninteractive"
-      DEBCONF_NONINTERACTIVE_SEEN: "true"
-      UCF_FORCE_CONFFOLD: "1"
-      EPG_OVERLAY_ALPHA: "1.0"
-      STALKER_PORTAL_REPO: "https://github.com/NeilRuffell/MAC_portal.git"
-      STALKER_PORTAL_BRANCH: "epg-pip"
-
-    ports:
-      - "34080:88"
-
-    tty: true
-    stdin_open: true
-
     depends_on:
       - stalker-db
-
+    environment:
+      STALKER_DB_HOST: "stalker-db"
+      STALKER_DB_NAME: "stalker_db"
+      STALKER_DB_PASSWORD: "MinistraDb2026Q7v9K2m4"
+      DEBIAN_FRONTEND: "noninteractive"
+    ports:
+      - "34080:88"
     networks:
       - stalker-net
-
-    entrypoint:
-      - "/bin/bash"
-      - "-lc"
-      - |
-          echo "Stopping container-internal MySQL..."
-          service mysql stop || true
-
-          echo "Waiting for external MySQL..."
-          until mysqladmin ping \
-            -h stalker-db \
-            -u root \
-            -p"$${STALKER_DB_PASSWORD}" \
-            --silent
-          do
-            sleep 2
-          done
-
-          if ! command -v git &> /dev/null; then
-            echo "Installing git..."
-            apt-get update && apt-get install -y git
-          fi
-
-          echo "Cloning custom repository from $${STALKER_PORTAL_REPO} (branch $${STALKER_PORTAL_BRANCH:-master})..."
-          rm -rf /var/www/html/stalker_portal
-          git clone --depth 1 -b "$${STALKER_PORTAL_BRANCH:-master}" "$${STALKER_PORTAL_REPO}" /var/www/html/stalker_portal
-
-          CONFIG="/var/www/html/stalker_portal/server/config.ini"
-          CUSTOM="/var/www/html/stalker_portal/server/custom.ini"
-          BUILD="/var/www/html/stalker_portal/deploy/build.xml"
-
-          echo "Configuring database connection..."
-
-          sed -i \
-            "s|mysql_host = .*|mysql_host = stalker-db|g" \
-            "$${CONFIG}"
-
-          sed -i \
-            "s|mysql_db = .*|mysql_db = stalker_db|g" \
-            "$${CONFIG}"
-
-          sed -i \
-            "s|mysql_user = .*|mysql_user = root|g" \
-            "$${CONFIG}"
-
-          sed -i \
-            "s|mysql_pass = .*|mysql_pass = $${STALKER_DB_PASSWORD}|g" \
-            "$${CONFIG}"
-
-          echo "Configuring language..."
-
-          sed -i \
-            "s|default_locale = .*|default_locale = en_GB.utf8|g" \
-            "$${CONFIG}"
-
-          touch "$${CUSTOM}"
-          sed -i "/^default_language = /d" "$${CUSTOM}"
-          echo "default_language = en" >> "$${CUSTOM}"
-
-          echo "Patching database deployment commands..."
-
-          sed -i \
-            "s|mysql -u root -p|mysql -h stalker-db -u root -p$${STALKER_DB_PASSWORD}|g" \
-            "$${BUILD}"
-
-          sed -i \
-            "s|mysql -u root|mysql -h stalker-db -u root -p$${STALKER_DB_PASSWORD}|g" \
-            "$${BUILD}"
-
-          echo "Forcing package installation into noninteractive mode..."
-
-          sed -i \
-            's|apt-get update 2>&1|env DEBIAN_FRONTEND=noninteractive apt-get update -y 2>&1|g' \
-            "$${BUILD}"
-
-          sed -i \
-            's|apt-get -y install|env DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold install|g' \
-            "$${BUILD}"
-
-          echo "Disabling obsolete Composer dependency enforcement..."
-
-          echo '{}' > /var/www/html/stalker_portal/deploy/composer.json
-          echo '{}' > /var/www/html/stalker_portal/deploy/ministra/composer.json
-
-          echo "Applying limits to legacy post-install tasks..."
-
-          sed -i \
-            's|cd /var/www/html/stalker_portal/server/tools/; php ./init_apps.php|cd /var/www/html/stalker_portal/server/tools/; timeout --kill-after=10s 180s php ./init_apps.php \|\| true|g' \
-            "$${BUILD}"
-
-          sed -i \
-            's|php /var/www/html/stalker_portal/deploy/scripts/change_permissions.php|timeout --kill-after=10s 300s php /var/www/html/stalker_portal/deploy/scripts/change_permissions.php \|\| true|g' \
-            "$${BUILD}"
-
-          echo "Starting package activity output..."
-
-          touch /var/log/dpkg.log
-          mkdir -p /var/log/apt
-          touch /var/log/apt/term.log
-
-          tail -n 0 -F \
-            /var/log/dpkg.log \
-            /var/log/apt/term.log \
-            2>/dev/null &
-
-          LOGTAIL_PID=$$!
-
-          echo "Running Ministra deployment..."
-
-          cd /var/www/html/stalker_portal/deploy
-
-          BUILD_STATUS=0
-          phing build || BUILD_STATUS=$$?
-
-          echo "Applying EPG overlay opacity..."
-
-          EPG_ALPHA="$${EPG_OVERLAY_ALPHA:-0.82}"
-          EPG_THEME_ROOT="/var/www/html/stalker_portal/c/template"
-
-          for CSS in "$${EPG_THEME_ROOT}"/*/epg.css "$${EPG_THEME_ROOT}"/*/epg_720.css "$${EPG_THEME_ROOT}"/*/epg_480.css
-          do
-            [ -f "$${CSS}" ] || continue
-
-            sed -i \
-              '/\/\* MINISTRA_EPG_OVERLAY_BEGIN \*\//,/\/\* MINISTRA_EPG_OVERLAY_END \*\//d' \
-              "$${CSS}"
-
-            {
-              echo
-              echo '/* MINISTRA_EPG_OVERLAY_BEGIN */'
-              echo '#epg[overlay_mode="1"] {'
-              printf '  background: rgba(0, 0, 0, %s) !important;\n' "$${EPG_ALPHA}"
-              echo '}'
-              echo '/* MINISTRA_EPG_OVERLAY_END */'
-            } >> "$${CSS}"
-
-            echo "Patched $${CSS}"
-          done
-
-          kill "$${LOGTAIL_PID}" 2>/dev/null || true
-
-          echo "Phing deployment exit code: $${BUILD_STATUS}"
-
-          if [ "$${BUILD_STATUS}" -ne 0 ]; then
-            echo "WARNING: Ministra deployment reported an error."
-            echo "Apache will still start so the portal response can be tested."
-          fi
-
-          echo "Starting Apache on container port 88..."
-
-          service apache2 stop || true
-          killall -9 apache2 2>/dev/null || true
-          rm -f /var/run/apache2/apache2.pid
-
-          exec /usr/sbin/apache2ctl -D FOREGROUND
 
 networks:
   stalker-net:
     name: stalker-net
     driver: bridge
+
+volumes:
+  stalker_mysql:
