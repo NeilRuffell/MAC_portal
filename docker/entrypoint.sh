@@ -14,6 +14,11 @@ until mysqladmin ping -h "${STALKER_DB_HOST:-stalker-db}" -u root -p"${STALKER_D
   sleep 2
 done
 
+echo "Applying client UI customizations..."
+if [ -d /opt/mac_portal/c ]; then
+  cp -a /opt/mac_portal/c/. "${PORTAL_ROOT}/c/"
+fi
+
 echo "Configuring portal database..."
 sed -i "s|mysql_host = .*|mysql_host = ${STALKER_DB_HOST:-stalker-db}|g" "$CONFIG"
 sed -i "s|mysql_db = .*|mysql_db = ${STALKER_DB_NAME:-stalker_db}|g" "$CONFIG"
