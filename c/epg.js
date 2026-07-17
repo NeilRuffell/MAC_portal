@@ -33,13 +33,6 @@
         this.horiz_dir = 1;
         
         this.time_marks = [];
-
-        this.preview_pos_map = [
-            {"mode" : 576,  "xsize" : 320, "ysize" : 256, "x" : 350, "y" : 40},
-            {"mode" : 720,  "xsize" : 569, "ysize" : 320, "x" : 640, "y" : 40},
-            {"mode" : 1080, "xsize" : 854, "ysize" : 480, "x" : 960, "y" : 60},
-            {"mode" : 480,  "xsize" : 300, "ysize" : 240, "x" : 350, "y" : 30}
-        ];
         
         this.marks_map = [];
         
@@ -137,45 +130,15 @@
             this.player_overlay_mode = player_overlay_mode;
 
             if (player_overlay_mode){
-                this.preview_box && this.preview_box.show();
                 this.dom_obj.setAttribute('overlay_mode', '1');
                 this.dom_obj.style.background = 'none';
                 this.color_buttons.buttons_bar.hide();
                 this.header_path.hide();
-                
-                try {
-                    var mode = parseInt(stb.video_mode);
-                    var pos = this.preview_pos_map[this.preview_pos_map.getIdxByVal("mode", mode)];
-                    if (pos) {
-                        var xsize = pos.xsize;
-                        var ysize = pos.ysize;
-                        var x = pos.x;
-                        var y = pos.y;
-                        if (stb.graphic_mode == 1080) {
-                            xsize = xsize * 0.667;
-                            ysize = ysize * 0.667;
-                            x = 960;
-                            y = 60;
-                        }
-                        stb.SetTopWin(1);
-                        stb.SetViewport(xsize, ysize, x, y);
-                    }
-                } catch(e) {
-                    _debug('epg viewport error:', e);
-                }
             }else{
-                this.preview_box && this.preview_box.hide();
                 this.dom_obj.removeAttribute('overlay_mode');
                 this.dom_obj.style.background = '';
                 this.color_buttons.buttons_bar.show();
                 this.header_path.show();
-                
-                try {
-                    stb.SetTopWin(0);
-                    stb.SetViewport(0, 0, 0, 0);
-                } catch(e) {
-                    _debug('epg viewport restore error:', e);
-                }
             }
             
             this.superclass.show.call(this, false);
@@ -194,13 +157,6 @@
             if (this.player_overlay_mode){
                 stb.set_cur_place(module.tv.layer_name);
                 stb.set_cur_layer(module.tv);
-                
-                try {
-                    stb.SetTopWin(0);
-                    stb.SetViewport(0, 0, 0, 0);
-                } catch(e) {
-                    _debug('epg hide viewport restore error:', e);
-                }
             }
         };
         
@@ -209,9 +165,6 @@
             
             this.superclass.init.call(this);
             
-            this.preview_box = create_block_element('tv_prev_window', this.dom_obj);
-            this.preview_box.hide();
-
             this.program_info = create_block_element('program_info', this.dom_obj);
             
             this.on_date = create_block_element('on_date', this.dom_obj);

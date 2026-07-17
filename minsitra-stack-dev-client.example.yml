@@ -1,0 +1,57 @@
+# Optional development stack for fast client UI iteration.
+# Do not use this for the stable TV stack until the host path is populated.
+#
+# Before deploying this file, copy the running portal's client assets into:
+#   /mnt/zfs-01-ssd/apps/ministra/custom-c
+#
+# Then edits made under that TrueNAS path are visible in the container without
+# rebuilding the GHCR image. This file intentionally mounts only /c, not server,
+# admin, db, or ionCube-protected runtime files.
+
+services:
+  stalker-db:
+    image: mysql:5.7
+    platform: linux/amd64
+    container_name: stalker-db-dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "MinistraDb2026Q7v9K2m4"
+      MYSQL_ROOT_HOST: "%"
+      MYSQL_DATABASE: "stalker_db"
+    command:
+      - "--sql-mode=NO_ENGINE_SUBSTITUTION"
+    volumes:
+      - stalker_mysql_dev:/var/lib/mysql
+    networks:
+      - stalker-net-dev
+
+  stalker-portal:
+    image: ghcr.io/neilruffell/mac-portal:epg-pip
+    platform: linux/amd64
+    container_name: stalker-portal-dev
+    restart: unless-stopped
+    depends_on:
+      - stalker-db
+    environment:
+      STALKER_DB_HOST: "stalker-db"
+      STALKER_DB_NAME: "stalker_db"
+      STALKER_DB_PASSWORD: "MinistraDb2026Q7v9K2m4"
+      DEBIAN_FRONTEND: "noninteractive"
+    ports:
+      - "34081:88"
+    volumes:
+      - type: bind
+        source: /mnt/zfs-01-ssd/apps/ministra/custom-c
+        target: /var/www/html/stalker_portal/c
+        bind:
+          create_host_path: false
+    networks:
+      - stalker-net-dev
+
+networks:
+  stalker-net-dev:
+    name: stalker-net-dev
+    driver: bridge
+
+volumes:
+  stalker_mysql_dev:
