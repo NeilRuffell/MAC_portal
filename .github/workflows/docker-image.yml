@@ -3,6 +3,7 @@ name: Build portal image
 on:
   push:
     branches:
+      - master
       - epg-pip
   workflow_dispatch:
 
@@ -29,4 +30,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/neilruffell/mac-portal:epg-pip
+          tags: ghcr.io/neilruffell/mac-portal:${{ github.ref_name }}
