@@ -148,6 +148,7 @@
                 userid="${mysql_user}"
                 password="${mysql_pass}"
                 dir="${build.dir}/db/delta"
+                deltaset="doctrine"
                 outputfile="${build.dir}/${build.dbdeploy.deployfile}"
                 undooutputfile="${build.dir}/${build.dbdeploy.undofile}"/>
 
