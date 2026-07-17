@@ -8,7 +8,7 @@
         
         this.layer_name = 'epg';
         
-        this.total_rows  = 6;
+        this.total_rows  = 10;
         
         this.active_row_offset = 0;
         
