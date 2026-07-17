@@ -130,10 +130,12 @@
             this.player_overlay_mode = player_overlay_mode;
 
             if (player_overlay_mode){
+                this.dom_obj.setAttribute('overlay_mode', '1');
                 this.dom_obj.style.background = 'none';
                 this.color_buttons.buttons_bar.hide();
                 this.header_path.hide();
             }else{
+                this.dom_obj.removeAttribute('overlay_mode');
                 this.dom_obj.style.background = '';
                 this.color_buttons.buttons_bar.show();
                 this.header_path.show();
