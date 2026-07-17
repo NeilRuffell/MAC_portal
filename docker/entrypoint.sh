@@ -18,7 +18,12 @@ done
 echo "Applying packaged portal customizations..."
 if [ ! -d "${PORTAL_ROOT}/server/lib/core" ]; then
   echo "ERROR: base portal core files are missing at ${PORTAL_ROOT}/server/lib/core"
-  exit 1
+  echo "Searching for existing portal core files in the image..."
+  find / -path "*/server/lib/core/config.class.php" -print 2>/dev/null || true
+  echo "Top-level /var/www layout:"
+  find /var/www -maxdepth 4 -type d -print 2>/dev/null || true
+  echo "Container left running for inspection."
+  tail -f /dev/null
 fi
 
 cp -a "${CUSTOM_ROOT}/c/." "${PORTAL_ROOT}/c/"
