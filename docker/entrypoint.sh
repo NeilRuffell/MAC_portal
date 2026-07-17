@@ -32,15 +32,10 @@ sed -i 's|apt-get update 2>&1|env DEBIAN_FRONTEND=noninteractive apt-get update 
 sed -i 's|apt-get -y install|env DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold install|g' "$BUILD"
 sed -i 's#command=".*init_apps.php.*"#command="timeout --kill-after=10s 180s php ${project_path}/server/tools/init_apps.php || true"#g' "$BUILD"
 sed -i 's|command=".*change_permissions.php.*"|command="echo Skipping change_permissions"|g' "$BUILD"
-sed -i 's#command="php ${project_path}/deploy/composer/composer.phar install"#command="echo Skipping obsolete Composer install"#g' "$BUILD"
 
 echo "Disabling obsolete Composer dependency enforcement..."
 echo '{}' > "${PORTAL_ROOT}/deploy/composer.json"
-rm -f "${PORTAL_ROOT}/deploy/composer.lock"
-if [ -d "${PORTAL_ROOT}/deploy/ministra" ]; then
-  echo '{}' > "${PORTAL_ROOT}/deploy/ministra/composer.json"
-  rm -f "${PORTAL_ROOT}/deploy/ministra/composer.lock"
-fi
+echo '{}' > "${PORTAL_ROOT}/deploy/ministra/composer.json"
 
 echo "Reducing old PHP notice noise..."
 if ! grep -q "E_DEPRECATED" "${PORTAL_ROOT}/admin/app.php"; then
@@ -58,8 +53,6 @@ fi
 
 echo "Starting services..."
 service memcached start || true
-echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf
-a2enconf servername >/dev/null 2>&1 || true
 service apache2 stop || true
 killall -9 apache2 2>/dev/null || true
 rm -f /var/run/apache2/apache2.pid
