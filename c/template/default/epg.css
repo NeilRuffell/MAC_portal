@@ -237,3 +237,48 @@
     height: 339px;
     -webkit-transition: all 0.2s linear;
 }
+
+#epg .blue_row_bg {
+    top: 320px !important;
+}
+
+#epg .active_row_bg, #epg .blue_row_bg[active="active"] {
+    top: 320px !important;
+}
+
+#epg .live_line_container {
+    top: 320px !important;
+}
+
+#epg .live_line {
+    height: 204px !important;
+}
+
+#epg .time_mark {
+    top: 290px !important;
+}
+
+#epg .on_date {
+    top: 290px !important;
+}
+
+#epg .program_info {
+    position: absolute;
+    top: 40px !important;
+    bottom: auto !important;
+    left: 49px !important;
+    height: 240px !important;
+    width: 290px !important;
+}
+
+#epg .tv_prev_window {
+    position: absolute;
+    top: 36px;
+    left: 346px;
+    width: 328px;
+    height: 264px;
+    background: transparent;
+    border: 4px solid #284b82;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
