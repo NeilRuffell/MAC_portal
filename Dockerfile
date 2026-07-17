@@ -1,7 +1,7 @@
 FROM slaserx/stalker-portal:latest
 
-COPY . /opt/mac_portal
+COPY docker/entrypoint.sh /usr/local/bin/mac-portal-entrypoint
 
-RUN chmod +x /opt/mac_portal/docker/entrypoint.sh
+RUN chmod +x /usr/local/bin/mac-portal-entrypoint
 
-ENTRYPOINT ["/opt/mac_portal/docker/entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/mac-portal-entrypoint"]
