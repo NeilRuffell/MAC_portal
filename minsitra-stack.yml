@@ -14,7 +14,7 @@ services:
       - "--sql-mode=NO_ENGINE_SUBSTITUTION"
 
     volumes:
-      - "/mnt/zfs-01-ssd/apps/ministra/mysql_clean:/var/lib/mysql"
+      - "/mnt/zfs-01-ssd/apps/ministra/mysql:/var/lib/mysql"
 
     networks:
       - stalker-net
@@ -33,9 +33,6 @@ services:
       EPG_OVERLAY_ALPHA: "1.0"
       STALKER_PORTAL_REPO: "https://github.com/NeilRuffell/MAC_portal.git"
       STALKER_PORTAL_BRANCH: "epg-pip"
-      SYMFONY_ENV: "dev"
-      APP_ENV: "dev"
-      APP_DEBUG: "1"
 
     ports:
       - "34080:88"
@@ -71,20 +68,9 @@ services:
             apt-get update && apt-get install -y git
           fi
 
-          echo "Cloning custom repository to temporary folder..."
-          rm -rf /tmp/custom_portal
-          git clone --depth 1 -b "$${STALKER_PORTAL_BRANCH:-master}" "$${STALKER_PORTAL_REPO}" /tmp/custom_portal
-
-          echo "Applying customized files over pre-installed portal..."
-          cp -r /tmp/custom_portal/c/* /var/www/html/stalker_portal/c/
-          cp -r /tmp/custom_portal/admin/* /var/www/html/stalker_portal/admin/
-          cp -r /tmp/custom_portal/server/* /var/www/html/stalker_portal/server/
-          cp -r /tmp/custom_portal/db/* /var/www/html/stalker_portal/db/
-
-          echo "Bypassing PHP 7.0 deprecation notice crashes..."
-          sed -i \
-            's|\\E_ALL|\\E_ALL \& ~\\E_DEPRECATED \& ~\\E_USER_DEPRECATED \& ~\\E_NOTICE \& ~\\E_STRICT|g' \
-            /var/www/html/stalker_portal/admin/app.php
+          echo "Cloning custom repository from $${STALKER_PORTAL_REPO} (branch $${STALKER_PORTAL_BRANCH:-master})..."
+          rm -rf /var/www/html/stalker_portal
+          git clone --depth 1 -b "$${STALKER_PORTAL_BRANCH:-master}" "$${STALKER_PORTAL_REPO}" /var/www/html/stalker_portal
 
           CONFIG="/var/www/html/stalker_portal/server/config.ini"
           CUSTOM="/var/www/html/stalker_portal/server/custom.ini"
@@ -146,11 +132,11 @@ services:
           echo "Applying limits to legacy post-install tasks..."
 
           sed -i \
-            's|command=".*init_apps.php.*"|command="timeout --kill-after=10s 180s php $${project_path}/server/tools/init_apps.php \|\| true"|g' \
+            's|cd /var/www/html/stalker_portal/server/tools/; php ./init_apps.php|cd /var/www/html/stalker_portal/server/tools/; timeout --kill-after=10s 180s php ./init_apps.php \|\| true|g' \
             "$${BUILD}"
 
           sed -i \
-            's|command=".*change_permissions.php.*"|command="echo Skipping change_permissions"|g' \
+            's|php /var/www/html/stalker_portal/deploy/scripts/change_permissions.php|timeout --kill-after=10s 300s php /var/www/html/stalker_portal/deploy/scripts/change_permissions.php \|\| true|g' \
             "$${BUILD}"
 
           echo "Starting package activity output..."
@@ -206,9 +192,6 @@ services:
             echo "WARNING: Ministra deployment reported an error."
             echo "Apache will still start so the portal response can be tested."
           fi
-
-          echo "Starting memcached..."
-          service memcached start || true
 
           echo "Starting Apache on container port 88..."
 

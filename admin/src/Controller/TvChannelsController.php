@@ -1110,14 +1110,10 @@ class TvChannelsController extends \Controller\BaseStalkerController {
                 if (!mb_check_encoding($name, 'UTF-8')) {
                     $name = mb_convert_encoding($name, 'UTF-8', array('CP1251'));
                 }
-                $channel = array(
+                $data['data']['channels'][] = array(
                     'name' => $name,
                     'cmd' => trim($item['path'])
                 );
-                if (isset($item['number'])) {
-                    $channel['number'] = $item['number'];
-                }
-                $data['data']['channels'][] = $channel;
             }
             $error = '';
         } catch (\Exception $e) {
@@ -2089,9 +2085,6 @@ class TvChannelsController extends \Controller\BaseStalkerController {
                     $tmp = substr($line, 8);
 
                     $data[$num]['name'] = end(explode(',', $tmp, 2));
-                    if (preg_match('/(?:tvg?-)?chno\s*=\s*["\']?(\d+)["\']?/i', $tmp, $matches)) {
-                        $data[$num]['number'] = (int) $matches[1];
-                    }
 
                     while (list(, $line) = each($lines)) {
                         $line = trim($line);
