@@ -16,10 +16,7 @@ services:
       - stalker-net
 
   stalker-portal:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: mac-portal:local
+    image: ghcr.io/neilruffell/mac-portal:epg-pip
     platform: linux/amd64
     container_name: stalker-portal
     restart: unless-stopped
@@ -30,8 +27,6 @@ services:
       STALKER_DB_NAME: "stalker_db"
       STALKER_DB_PASSWORD: "MinistraDb2026Q7v9K2m4"
       DEBIAN_FRONTEND: "noninteractive"
-      HOME: "/tmp"
-      DOCKER_CONFIG: "/tmp/.docker"
     ports:
       - "34080:88"
     networks:
