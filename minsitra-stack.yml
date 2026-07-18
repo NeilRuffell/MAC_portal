@@ -29,17 +29,6 @@ services:
       DEBIAN_FRONTEND: "noninteractive"
     ports:
       - "34080:88"
-    volumes:
-      - type: bind
-        source: /mnt/zfs-01-ssd/apps/ministra/custom-c/template
-        target: /var/www/html/stalker_portal/c/template
-        bind:
-          create_host_path: false
-      - type: bind
-        source: /mnt/zfs-01-ssd/apps/ministra/custom-c/tv.js
-        target: /var/www/html/stalker_portal/c/tv.js
-        bind:
-          create_host_path: false
     networks:
       - stalker-net
 
