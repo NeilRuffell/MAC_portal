@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - epg-pip
+      - main-menu-data-format
   workflow_dispatch:
 
 permissions:

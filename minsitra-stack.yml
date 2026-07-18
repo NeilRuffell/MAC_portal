@@ -16,7 +16,7 @@ services:
       - stalker-net
 
   stalker-portal:
-    image: ghcr.io/neilruffell/mac-portal:master
+    image: ghcr.io/neilruffell/mac-portal:main-menu-data-format
     platform: linux/amd64
     container_name: stalker-portal
     restart: unless-stopped
