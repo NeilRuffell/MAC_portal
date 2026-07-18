@@ -13,7 +13,7 @@
 #epg .active_row_bg, #epg .blue_row_bg[active="active"]{
     position: absolute;
     left: 70px;
-    top: 92px;
+    top: 195px;
     height: 45px;
     background-image: url("i_720/tv_table.png");
     background-position: 0 -1px;
@@ -178,7 +178,7 @@
 
 #epg .program_info{
     position: absolute;
-    bottom: 77px;
+    top: 92px;
     left: 70px;
     height: 98px;
     width: 1130px;
@@ -197,7 +197,7 @@
 
 #epg .on_date{
     position: absolute;
-    top: 70px;
+    top: 173px;
     right: 876px;
     text-align: right;
     width: 250px;
@@ -207,7 +207,7 @@
 
 #epg .time_mark{
     position: absolute;
-    top: 68px;
+    top: 171px;
     color: #fff;
     font-size: 20px;
 }
@@ -230,7 +230,7 @@
 
 #epg .live_line_container{
     position: absolute;
-    top: 92px;
+    top: 195px;
     left: 410px;
     width: 800px;
 }
