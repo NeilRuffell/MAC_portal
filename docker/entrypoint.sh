@@ -52,8 +52,14 @@ if [ "$BUILD_STATUS" -ne 0 ]; then
 fi
 
 echo "Applying packaged server customizations..."
-install -m 0644 /opt/mac-portal-overrides/server/lib/epg.class.php "${PORTAL_ROOT}/server/lib/epg.class.php"
-if ! cmp -s /opt/mac-portal-overrides/server/lib/epg.class.php "${PORTAL_ROOT}/server/lib/epg.class.php"; then
+EPG_TARGET="$(find "${PORTAL_ROOT}/server" -type f -iname 'epg.class.php' -print -quit)"
+if [ -z "$EPG_TARGET" ]; then
+  echo "ERROR: could not locate the deployed EPG server class."
+  exit 1
+fi
+echo "Installing EPG server customization at ${EPG_TARGET}"
+install -m 0644 /opt/mac-portal-overrides/server/lib/epg.class.php "$EPG_TARGET"
+if ! cmp -s /opt/mac-portal-overrides/server/lib/epg.class.php "$EPG_TARGET"; then
   echo "ERROR: failed to install the packaged EPG server customization."
   exit 1
 fi
