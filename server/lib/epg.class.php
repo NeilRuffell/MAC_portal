@@ -701,7 +701,7 @@ class Epg implements \Stalker\Lib\StbApi\Epg
         $to    = $_REQUEST['to'];
         $default_page = false;
 
-        $page_items = 6;
+        $page_items = 10;
 
         $all_user_ids = Itv::getInstance()->getAllUserChannelsIds();
 
@@ -811,7 +811,7 @@ class Epg implements \Stalker\Lib\StbApi\Epg
 
         for ($i=0; $i<count($user_channels); $i++){
             if (Config::getSafe('enable_numbering_in_order', false) || !empty($_REQUEST['fav'])){
-                $user_channels[$i]['number'] = (string) (($i+1)+($page-1)*$page_items);
+                $user_channels[$i]['number'] = (string) (($i+1)+($page-1)*10);
             }
             $display_channels_ids[] = $user_channels[$i]['id'];
         }
