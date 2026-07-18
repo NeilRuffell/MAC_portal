@@ -20,27 +20,10 @@
             {"mode" : 576,  "xsize" : 320, "ysize" : 256, "x" : 350, "y" : 74},
             {"mode" : 720,  "xsize" : 569, "ysize" : 320, "x" : 625, "y" : 93},
             {"mode" : 1080, "xsize" : 854, "ysize" : 480, "x" : 933, "y" : 139},
-            {"mode" : 480,  "xsize" : 300, "ysize" : 240, "x" : 350, "y" : 63}
+            {"mode" : 480,  "xsize" : 300, "ysize" : 240, "x" : 350, "y" : 63},
+            {"mode" : 3840, "xsize" : 1708, "ysize" : 960, "x" : 1875, "y" : 278}
         ];
 
-        _debug('parseInt(stb.video_mode)', parseInt(stb.video_mode));
-        _debug('stb.graphic_mode', stb.graphic_mode);
-
-        if (stb.graphic_mode == 1080){
-            this.preview_pos = this.preview_pos_map[this.preview_pos_map.getIdxByVal("mode", parseInt(stb.video_mode))];
-
-            this.preview_pos.xsize = this.preview_pos.xsize*0.667;
-            this.preview_pos.ysize = this.preview_pos.ysize*0.667;
-
-            this.preview_pos.x = 945;
-            this.preview_pos.y = 274;
-
-        }else{
-            this.preview_pos = this.preview_pos_map[this.preview_pos_map.getIdxByVal("mode", parseInt(stb.video_mode))];
-        }
-
-        //this.preview_pos = this.preview_pos_map[this.preview_pos_map.getIdxByVal("mode", parseInt(stb.video_mode))];
-        
         this.superclass = ListLayer.prototype;
         
         this.sort_menu = {};
@@ -55,12 +38,18 @@
         this.quick_ch_switch = {"on" : false, "hide_to" : 3000};
         
         this.row_callback_timer;
-        this.row_callback_timeout = 500;
-        
+        this.row_callback_timeout = 50;
+
+        this.shift_row_callback_timer;
+        this.shift_row_callback_timeout = 50;
+
+        this.shift_page_callback_timer;
+        this.shift_page_callback_timeout = 50;
+
         this.fav_manage_mode = false;
         this.auto_play  = true;
         
-        this.password_input = new password_input({"parent" : this, "proceed_navigation" : true});
+        this.password_input = new password_input({"parent" : this, "proceed_navigation" : true, id : 'tv_modal_form'});
         this.password_input.bind();
         
         this._show = function(genre){
@@ -76,6 +65,7 @@
             }
             
             this.load_params['genre'] = genre.id;
+            this.load_params['force_ch_link_check']=  stb.user['force_ch_link_check'];
 
             this.genre = genre;
 
@@ -86,6 +76,47 @@
             this.show();
         };
 
+        this.recalculate_preview_mode = function () {
+            _debug('tv.recalculate_preview_mode');
+
+            if (typeof(module) != 'undefined' && module.epg && module.epg.on && module.epg.recalculate_preview_mode){
+                module.epg.recalculate_preview_mode();
+                return;
+            }
+
+            try{
+                stb.video_mode = stb.RDir('vmode');
+            }catch(e){
+                _debug(e)
+            }
+
+            _debug('stb.video_mode', stb.video_mode);
+
+            _debug('parseInt(stb.video_mode)', parseInt(stb.video_mode));
+            _debug('stb.graphic_mode', stb.graphic_mode);
+
+            if (stb.graphic_mode == 1080){
+                this.preview_pos = this.preview_pos_map[this.preview_pos_map.getIdxByVal("mode", parseInt(stb.video_mode))];
+
+                this.preview_pos.xsize = this.preview_pos.xsize*0.667;
+                this.preview_pos.ysize = this.preview_pos.ysize*0.667;
+
+                this.preview_pos.x = 945;
+                this.preview_pos.y = 274;
+
+            }else{
+                this.preview_pos = this.preview_pos_map[this.preview_pos_map.getIdxByVal("mode", parseInt(stb.video_mode))];
+            }
+
+            if (stb.player.on && stb.player.is_tv && this.on == false){
+                _debug('stb.SetPIG');
+                stb.SetPIG(1, -1, -1, -1);
+            }else if (this.on && this.cur_view == 'short') {
+                _debug('stb.SetViewport');
+                stb.SetViewport(this.preview_pos.xsize, this.preview_pos.ysize, this.preview_pos.x, this.preview_pos.y)
+            }
+        };
+
         this.init = function(){
             this.superclass.init.call(this);
 
@@ -94,10 +125,12 @@
             }
 
             if (stb.user['enable_buffering_indication']){
-                this.progress_bar.init(this);
+                // this.progress_bar.init(this);
             }
 
             this.init_aspects();
+
+            this.recalculate_preview_mode();
 
             var scope = this;
 
@@ -181,7 +214,7 @@
                 
                 if (this.cur_view == 'short'){
                     stb.SetTopWin(1);
-                    stb.SetViewport(this.preview_pos.xsize, this.preview_pos.ysize, this.preview_pos.x, this.preview_pos.y);
+                    this.recalculate_preview_mode();
 
                     _debug('stb.player.on', stb.player.on);
                     _debug('stb.player.is_tv', stb.player.is_tv);
@@ -212,6 +245,21 @@
             
             this.short_epg_loader.stop();
 
+            _debug('module.epg', typeof(module.epg));
+
+            if (module.epg){
+                if (stb.player.pvr_target_select && stb.player.pvr_target_select.on){
+                    stb.player.pvr_target_select.hide();
+                }
+                if (stb.player.remote_pvr_confirm && stb.player.remote_pvr_confirm.on){
+                    stb.player.remote_pvr_confirm.hide();
+                }
+                if (stb.player.local_pvr_confirm && stb.player.local_pvr_confirm.on){
+                    stb.player.local_pvr_confirm.hide();
+                }
+                module.epg.hide();
+            }
+
             try{
                 
                 if (this.fav_manage_mode){
@@ -223,7 +271,8 @@
                 this.fav_menu.on && this.fav_menu.hide && this.fav_menu.hide();
                 this.filter_menu.on && this.filter_menu.hide && this.filter_menu.hide();
 
-                this.password_input.on && this.password_input.hide && this.password_input.hide();
+                this.password_input && this.password_input.on && this.password_input.hide && this.password_input.hide();
+                this.parent_password_promt && this.parent_password_promt.on && this.parent_password_promt.hide && this.parent_password_promt.hide();
                 
                 this.superclass.hide.call(this, do_not_reset);
             
@@ -240,7 +289,7 @@
                     stb.player.stop();
                     //this.last_ch_id = 0;
                 }
-                
+
                 stb.SetTopWin(0);
                 stb.SetPIG(1, -1, -1, -1);
                 stb.EnableVKButton(true);
@@ -331,7 +380,7 @@
 
                     _debug('this.cur_item', this.cur_item);
 
-                    if (this.data_items[this.cur_row].lock == 1 && !this.data_items[this.cur_row].unlocked && this.genre.alias !== 'for adults'){
+                    if (this.data_items[this.cur_row].lock == 1 && !this.data_items[this.cur_row].unlocked && this.genre.censored != 1){
                         return;
                     }
 
@@ -414,10 +463,8 @@
                 if (this.quick_ch_switch.on){
                     this.del_quick_go_ch();
                 }else if (stb.profile['play_in_preview_only_by_ok']){
-                    this.hide(true);
-                    if (this.cur_view != 'short'){
-                        main_menu.show();
-                    }
+                    this.hide();
+                    main_menu.show();
                 }
             }).bind(key.BACK, this);
             
@@ -538,7 +585,7 @@
                 return;
             }
 
-            if (this.data_items[this.cur_row].lock && !this.data_items[this.cur_row].unlocked && this.genre.alias != 'for adults'){
+            if (this.data_items[this.cur_row].lock && !this.data_items[this.cur_row].unlocked && this.genre.censored != 1){
                 var self = this;
                 
                 this.password_input.callback = function(){
@@ -704,7 +751,7 @@
             try{
                 _debug('this.preview_pos', this.preview_pos);
                 stb.SetTopWin(1);
-                stb.SetViewport(this.preview_pos.xsize, this.preview_pos.ysize, this.preview_pos.x, this.preview_pos.y);
+                this.recalculate_preview_mode();
             }catch(e){
                 _debug(e);
             }
@@ -764,6 +811,7 @@
                 this.cur_row_data.number = data[idx].number;
 
                 data[idx] = this.cur_row_data;
+                this.active_row['number_block'].innerHTML = this.cur_row_data.number;
             }
             
             this.load_params['from_ch_id'] = 0;
@@ -942,33 +990,6 @@
                 if (!self.on){
                     return;
                 }
-                
-                //self.fill_short_info(item);
-                
-                /*if (item.open){
-
-                    _debug('item.lock', item.lock);
-
-                    if (item.lock && self.genre.alias != 'for adults'){
-                        self.password_input.callback = function(){
-                            stb.player.need_show_info = 0;
-                            stb.player.prev_layer = self;
-                            self.data_items[self.cur_row].unlocked = true;
-                            self.fill_short_info(item);
-                            self._play_now(item);
-                        };
-
-                        self.password_input.show();
-                    }else{
-                        self.fill_short_info(item);
-                        stb.player.need_show_info = 0;
-                        stb.player.prev_layer = self;
-                        self._play_now(item);
-                    }
-                }else{
-                    self.fill_short_info(item);
-                    stb.player.stop();
-                }*/
 
                 if (!self.do_not_load){
                     self.check_for_play_in_preview();
@@ -990,15 +1011,26 @@
             item = item || this.data_items[this.cur_row];
 
             _debug('item', item);
-
             var self = this;
 
-            if (item.open){
+                stb.player.stop();
 
+            if (item.open){
                 _debug('item.lock', item.lock);
 
-                if (item.lock && self.genre.alias != 'for adults'){
+                var item_genre_censored = 1;
+
+                for (var i in module.tv.genres) {
+                    if (module.tv.genres[i].id == item.tv_genre_id) {
+                        item_genre_censored = module.tv.genres[i].censored;
+                    }
+                }
+
+                _debug(' items genre censored ', item_genre_censored);
+
+                if ((item.lock == '1' || item_genre_censored == '1' ) && self.genre.censored != 1 ){
                     self.password_input.callback = function(){
+                        self.preview_msg.innerHTML = '';
                         stb.player.need_show_info = 0;
                         stb.player.prev_layer = self;
                         self.data_items[self.cur_row].unlocked = true;
@@ -1006,6 +1038,7 @@
                         self._play_now(item);
                     };
 
+                    self.preview_msg.innerHTML = word['Channel is locked'];
                     self.password_input.show();
                 }else{
                     self.fill_short_info(item);
@@ -1015,8 +1048,104 @@
                 }
             }else{
                 self.fill_short_info(item);
-                stb.player.stop();
             }
+        };
+
+        this.handle_advert = function (items, current_item) {
+            _debug('tv.handle_advert', items, current_item);
+
+            var preview = this.on && this.cur_view == 'short';
+
+            _debug('preview', preview);
+
+            var self = this;
+
+            if (Array.isArray(items)){
+
+                var adverts = items;
+
+                var callback = function () {
+                    _debug('tv callback');
+
+                    stb.key_lock = false;
+
+                    var item = current_item.clone();
+                    item.disable_ad = true;
+
+                    self._play_now(item);
+                };
+
+                for (var i=0; i<adverts.length; i++){
+
+                    var advert = adverts[i];
+
+                    if (i != adverts.length-1){
+
+                        callback = (function (ad, cb) {
+
+                            return function () {
+                                _debug('ad callback', ad);
+
+                                if (!preview){
+                                    self.hide(true);
+
+                                    stb.player.prev_layer = self;
+                                }
+
+                                if (!connection_problem.on){
+                                    stb.key_lock = true;
+                                }
+
+                                stb.player.need_show_info = 0;
+
+                                stb.player.play({
+                                    'id': ad.id,
+                                    'ad_id' : ad.id,
+                                    'cmd': ad.cmd,
+                                    'media_type': ad.media_type || '',
+                                    'is_advert': true,
+                                    'ad_tracking': ad.ad_tracking || {},
+                                    'ad_must_watch': ad.ad_must_watch || 0,
+                                    'stop_callback': cb
+                                });
+
+                                stb.player.ad_indication.show();
+                            }
+
+                        })(advert, callback);
+                    }
+                }
+
+                if (!preview){
+                    self.hide(true);
+
+                    stb.player.prev_layer = self;
+                }
+
+                if (!connection_problem.on){
+                    stb.key_lock = true;
+                }
+
+                stb.player.need_show_info = 0;
+
+                stb.player.play({
+                    'id': adverts[0].id,
+                    'ad_id': adverts[0].id,
+                    'cmd': adverts[0].cmd,
+                    'media_type': adverts[0].media_type || '',
+                    'is_advert': true,
+                    'ad_tracking': adverts[0].ad_tracking || {},
+                    'ad_must_watch' : adverts[0].ad_must_watch || 0,
+                    'stop_callback': callback
+
+                });
+
+                stb.player.ad_indication.show();
+
+            }else{
+                stb.player.play_now(items);
+            }
+
         };
 
         this._play_now = function(item){
@@ -1038,15 +1167,7 @@
                     }else if(result.error == 'link_fault'){
                         stb.notice.show(word['player_server_error']);
                     }else{
-                        //if (self.info.on){
-                        //    self.info.hide();
-                        //}
-
-                        //self.hide(true);
-
-                        //stb.player.prev_layer = self;
-                        //stb.player.need_show_info = 1;
-                        stb.player.play_now(result);
+                        this.handle_advert(result, item);
                     }
                 }
             }
@@ -1173,7 +1294,12 @@
         };
         
         this.shift_row = function(dir){
-            
+
+            var page_shift = 0;
+            if ((this.cur_row == 0 && dir < 0) || ((this.data_items.length - 1) == this.cur_row && dir > 0)) {
+                page_shift = dir;
+            }
+
             if (this.fav_manage_mode){
                 var cur_data_items = this.data_items.clone();
                 //var cur_row_data = this.data_items[this.cur_row].clone();
@@ -1185,59 +1311,75 @@
                 var cur_row_fav_idx = stb.player.fav_channels_ids.indexOf(cur_item_id);
                 
                 _debug('stb.player.fav_channels_ids before', stb.player.fav_channels_ids);
-                
+
+                var next_row_fav_idx = cur_row_fav_idx + dir;
+
+                if (next_row_fav_idx < 0) {
+                    next_row_fav_idx = stb.player.fav_channels_ids.length - 1;
+                } else if (next_row_fav_idx > stb.player.fav_channels_ids.length - 1) {
+                    next_row_fav_idx = 0;
+                }
+
+                stb.player.fav_channels_ids[cur_row_fav_idx]  = stb.player.fav_channels_ids[next_row_fav_idx];
+                stb.player.fav_channels_ids[next_row_fav_idx] = cur_item_id;
             }
 
             this.data_items[this.cur_row].unlocked = false;
             
             this.superclass.shift_row.call(this, dir);
-            
-            if (this.fav_manage_mode){
-    
-                var next_row_data = this.data_items[this.cur_row];
-                var next_number   = next_row_data.number;
-                var next_item_id  = this.data_items[this.cur_row].id;
 
-                _debug('cur_number', cur_number);
-                
-                _debug('next_row_data.number before', next_row_data.number);
-                
-                next_row_data.number = cur_number;
-                cur_row_data.number  = next_number;
+            if (this.fav_manage_mode && page_shift === 0){
+                var self = this;
+                var fav_shift_row = function () {
+                    if (page_shift === 0) {
+                        var next_row_data = self.data_items[self.cur_row];
+                        var next_number   = next_row_data.number;
 
-                _debug('next_row_data.number after', next_row_data.number);
-                
-                var next_row_fav_idx = stb.player.fav_channels_ids.indexOf(next_item_id);
-                
-                stb.player.fav_channels_ids[cur_row_fav_idx]  = next_item_id;
-                stb.player.fav_channels_ids[next_row_fav_idx] = cur_item_id;
-                
-                this.data_items[this.cur_row] = cur_row_data;
-                this.data_items[cur_row_num] = next_row_data;
+                        _debug('cur_number', cur_number);
 
-                if (this.data_items[this.cur_row].hasOwnProperty('open') && !this.data_items[this.cur_row].open){
-                    this.map[this.cur_row]['row'].addClass('close');
-                    this.active_row['row'].addClass('close');
-                }else{
-                    this.map[this.cur_row]['row'].removeClass('close');
-                    this.active_row['row'].removeClass('close');
-                }
+                        _debug('next_row_data.number before', next_row_data.number);
 
-                if (this.data_items[cur_row_num].hasOwnProperty('open') && !this.data_items[cur_row_num].open){
-                    this.map[cur_row_num]['row'].addClass('close');
-                }else{
-                    this.map[cur_row_num]['row'].removeClass('close');
-                }
+                        cur_row_data.number  = next_number;
 
-                this.active_row['number_block'].innerHTML = next_number;
-                                
-                _debug('stb.player.fav_channels_ids after', stb.player.fav_channels_ids);
-                
-                for (var j=0; j<this.row_blocks.length; j++){
-                    this.handling_block(cur_row_data[this.row_blocks[j]], this.map[this.cur_row], this.row_blocks[j]);
-                    
-                    this.handling_block(next_row_data[this.row_blocks[j]], this.map[cur_row_num], this.row_blocks[j]);
-                }
+                        next_row_data.number = cur_number;
+                        self.data_items[cur_row_num] = next_row_data;
+
+                        if (self.data_items[cur_row_num].hasOwnProperty('open') && !self.data_items[cur_row_num].open){
+                            self.map[cur_row_num]['row'].addClass('close');
+                        }else{
+                            self.map[cur_row_num]['row'].removeClass('close');
+                        }
+
+                        self.data_items[self.cur_row] = cur_row_data;
+
+                        _debug('next_row_data.number after', next_row_data.number);
+
+                        if (self.data_items[self.cur_row].hasOwnProperty('open') && !self.data_items[self.cur_row].open){
+                            self.map[self.cur_row]['row'].addClass('close');
+                            self.active_row['row'].addClass('close');
+                        }else{
+                            self.map[self.cur_row]['row'].removeClass('close');
+                            self.active_row['row'].removeClass('close');
+                        }
+
+                        self.active_row['number_block'].innerHTML = next_number;
+
+                        _debug('stb.player.fav_channels_ids after', stb.player.fav_channels_ids);
+
+                        for (var j=0; j<self.row_blocks.length; j++){
+                            self.handling_block(cur_row_data[self.row_blocks[j]], self.map[self.cur_row], self.row_blocks[j]);
+
+                            if (page_shift === 0) {
+                                self.handling_block(next_row_data[self.row_blocks[j]], self.map[cur_row_num], self.row_blocks[j]);
+                            }
+                        }
+                    }
+
+                    window.clearTimeout(self.shift_row_callback_timer);
+
+                };
+
+                this.shift_row_callback_timer = window.setTimeout(fav_shift_row, this.shift_row_callback_timeout);
             }
         };
 
@@ -1277,10 +1419,15 @@
             if (this.fav_manage_mode){
                 stb.player.save_fav_ids();
 
-                this.cur_row_data = this.data_items[this.cur_row];
             }
-            
-            this.superclass.shift_page.call(this, dir);
+            var self = this;
+
+            this.shift_page_callback_timer = window.setTimeout(function(){
+                self.cur_row_data = self.data_items[self.cur_row];
+                self.page_dir = dir;
+                self.superclass.shift_page.call(self, dir);
+                window.clearTimeout(self.shift_page_callback_timer);
+            }, this.shift_page_callback_timeout);
         };
         
         this.switch_fav_manage_mode = function(){
@@ -1334,10 +1481,12 @@
             _debug('tv.init_quick_ch_switch');
             
             this.quick_ch_switch.dom_obj = create_block_element('quick_ch_switch tv_preview_quick_ch_switch');
-            
-            //this.quick_ch_switch.dom_obj.moveY(300);
-            
+
             this.quick_ch_switch.input = create_block_element('quick_ch_input', this.quick_ch_switch.dom_obj);
+
+            if (['MAG351', 'MAG256', 'MAG257'].indexOf(stb.type) != -1){
+                this.quick_ch_switch.input.style.marginTop = '5px';
+            }
             
             this.quick_ch_switch.dom_obj.hide();
         };
@@ -1354,7 +1503,7 @@
                 this.quick_ch_switch.on = true;
             }
             
-            if (this.quick_ch_switch.input.innerHTML.length < 3){
+            if (this.quick_ch_switch.input.innerHTML.length < 5){
                 if (this.quick_ch_switch.input.innerHTML.length == 0 && num == 0){
                     
                 }else{
@@ -1490,11 +1639,11 @@
                 _debug('tv.short_epg_loader.start');
                 
                 var self = this;
-                
-                this.load();
+
+                window.clearInterval(this.load_timer);
+                this.load_timer = window.setTimeout(function(){self.load()}, 50);
                 
                 window.clearInterval(this.timer);
-                
                 this.timer = window.setInterval(function(){self.load()}, 5*60*1000);
             },
             
@@ -1512,21 +1661,46 @@
                     if (this.parent.data_items[this.parent.cur_row].type == 'dvb'){
                         this.fill(stb.epg_loader.get_curr_and_next(this.parent.data_items[this.parent.cur_row].id, false, 5));
                     }else{
-                        stb.load(
-                            {
-                                "type"   : "itv",
-                                "action" : "get_short_epg",
-                                "ch_id"  : this.parent.data_items[this.parent.cur_row].id
-                            },
 
-                            function(result){
-                                _debug('tv.short_epg_loader.load callback');
+                        var epg = stb.epg_loader.get_curr_and_next(this.parent.data_items[this.parent.cur_row].id, null, 5);
 
-                                this.fill(result);
-                            },
+                        _debug('epg', epg);
 
-                            this
-                        )
+                        var ch_id = this.parent.data_items[this.parent.cur_row].id;
+
+                        _debug('ch_id', ch_id);
+
+                        if (Array.isArray(epg) && epg.length < 5){
+
+                            stb.load(
+                                {
+                                    "type"   : "itv",
+                                    "action" : "get_short_epg",
+                                    "ch_id"  : ch_id,
+                                    "size"   : 10
+                                },
+
+                                function(result){
+                                    _debug('tv.short_epg_loader.load callback');
+
+                                    if (result && Array.isArray(result)){
+
+                                        stb.epg_loader.epg[ch_id] = epg = result;
+
+                                        epg.splice(5);
+                                    }else{
+                                        epg = [];
+                                    }
+
+                                    this.fill(epg);
+
+                                },
+
+                                this
+                            )
+                        }else{
+                            this.fill(epg);
+                        }
                     }
                 }
             },
@@ -1539,6 +1713,7 @@
         };
 
         this.progress_bar = {
+            // Progress Bar for TV preview
 
             load : 0,
 
@@ -1886,6 +2061,39 @@
         tv.filter_menu.dependency  = [tv.view_menu, tv.sort_menu, tv.fav_menu];
     }
 
+    tv.tmp_offsets = new Array;
+    tv.tmp_offsets = tv.map.map(function (currVal, index, arr) {
+        return arr[index]['top'];
+        /*console.log(arr[index]['top']);
+        arr[index].row.moveY(82);
+        arr[index]['top'] = 82;
+        return 1;*/
+    });
+    var currOffset;
+
+    while(tv.tmp_offsets.length) {
+        currOffset = tv.tmp_offsets.splice(0, 1)[0];
+        if (tv.tmp_offsets.indexOf(currOffset) !== -1) {
+            break;
+        }
+    }
+
+    if (typeof(tv.tmp_offsets) !== 'undefined' && tv.tmp_offsets.length) {
+        var offsets_timer = window.setTimeout(function () {
+            module.tv.map.map(function (currVal, index, mapArr) {
+                var item = currVal.row, offset;
+                item.show();
+                if (index > 0){
+                    offset = mapArr[index-1].row.clientHeight + mapArr[index-1].row.offsetTop;
+                    item.moveY(offset);
+                }
+
+                currVal['top'] = item.offsetTop;
+            });
+            window.clearTimeout(offsets_timer);
+        }, 200);
+    }
+
     tv.set_short_container();
     
     tv.init_header_path(word['tv_title']);
@@ -1912,37 +2120,49 @@
             module.tv.genre  = genres[0];
 
             var map = [];
+
+            var show_epg_for_genre = function (genre) {
+                module.tv.genre = genre;
+                module.tv.load_params['genre'] = genre.id;
+
+                main_menu.hide();
+
+                if (!module.epg) {
+                    module.tv._show(genre);
+                    return;
+                }
+
+                if (stb.player.on) {
+                    module.tv.auto_play = true;
+                    stb.player.stop();
+                }
+
+                module.epg.return_to_main_menu = true;
+                module.epg.ch_id = stb.player.cur_tv_item && stb.player.cur_tv_item.id ? stb.player.cur_tv_item.id : 0;
+                module.epg.show();
+            };
     
             for(var i=0; i<genres.length; i++){
-                map.push(
-                
-                    {
-                        "title" : genres[i].title,
-                        "cmd"   : (function(genre){
-                            
-                            
-                            return function(){
-                                _debug('genre.id', genre.id);
+                map.push({
+                    "title": genres[i].title,
+                    "cmd": (
+                        function (genre) {
+                            return function () {
+                                _debug('cmd - genre: id title', genre.id, genre.title);
 
-                                if (genre.alias == 'for adults'){
-
-                                    module.tv.parent_password_promt.callback = function(){
-                                        main_menu.hide();
-                                        module.tv._show(genre);
+                                if (genre.censored) {
+                                    module.tv.parent_password_promt.callback = function () {
+                                        show_epg_for_genre(genre);
                                     };
                                     module.tv.parent_password_promt.show();
-                                }else{
-                                    main_menu.hide();
-                                    module.tv._show(genre);
+                                } else {
+                                    show_epg_for_genre(genre);
                                 }
                             }
-                            
                         })(genres[i])
-                    }
-                );
+                    });
             }
-            
-            
+
             main_menu.add(word['tv_title'], map, 'mm_ico_tv.png', '', module.tv);
             
             loader.next();

@@ -8,7 +8,10 @@
         
         this.layer_name = 'epg';
         
-        this.total_rows  = 6;
+        this.total_rows = 6;
+        this.server_page_rows = 10;
+        this.loaded_virtual_page = 0;
+        this.load_request_id = 0;
         
         this.active_row_offset = 0;
         
@@ -33,16 +36,11 @@
         this.horiz_dir = 1;
         
         this.time_marks = [];
-
-        this.preview_pos_map = [
-            {"mode" : 576,  "xsize" : 320, "ysize" : 256, "x" : 350, "y" : 40},
-            {"mode" : 720,  "xsize" : 569, "ysize" : 320, "x" : 640, "y" : 40},
-            {"mode" : 1080, "xsize" : 854, "ysize" : 480, "x" : 960, "y" : 60},
-            {"mode" : 480,  "xsize" : 300, "ysize" : 240, "x" : 350, "y" : 30}
-        ];
         
         this.marks_map = [];
-        
+
+        this.preview_scale = 0.60;
+
         this.live_line = {
             
             on : false,
@@ -129,6 +127,7 @@
             _debug('epg.show', do_not_load, player_overlay_mode);
             
             this.cur_page = 0;
+            this.loaded_virtual_page = 0;
             
             this.parent.on = false;
             
@@ -136,49 +135,14 @@
 
             this.player_overlay_mode = player_overlay_mode;
 
-            if (player_overlay_mode){
-                this.preview_box && this.preview_box.show();
-                this.dom_obj.setAttribute('overlay_mode', '1');
-                this.dom_obj.style.background = 'none';
-                this.color_buttons.buttons_bar.hide();
-                this.header_path.hide();
-                
-                try {
-                    var mode = parseInt(stb.video_mode);
-                    var pos = this.preview_pos_map[this.preview_pos_map.getIdxByVal("mode", mode)];
-                    if (pos) {
-                        var xsize = pos.xsize;
-                        var ysize = pos.ysize;
-                        var x = pos.x;
-                        var y = pos.y;
-                        if (stb.graphic_mode == 1080) {
-                            xsize = xsize * 0.667;
-                            ysize = ysize * 0.667;
-                            x = 960;
-                            y = 60;
-                        }
-                        stb.SetTopWin(1);
-                        stb.SetViewport(xsize, ysize, x, y);
-                    }
-                } catch(e) {
-                    _debug('epg viewport error:', e);
-                }
-            }else{
-                this.preview_box && this.preview_box.hide();
-                this.dom_obj.removeAttribute('overlay_mode');
-                this.dom_obj.style.background = '';
-                this.color_buttons.buttons_bar.show();
-                this.header_path.show();
-                
-                try {
-                    stb.SetTopWin(0);
-                    stb.SetViewport(0, 0, 0, 0);
-                } catch(e) {
-                    _debug('epg viewport restore error:', e);
-                }
-            }
+            this.dom_obj.style.background = '';
+            this.dom_obj.setAttribute("overlay_mode", "0");
+            this.color_buttons.buttons_bar.show();
+            this.header_path.show();
             
             this.superclass.show.call(this, false);
+
+            this.show_tv_preview();
         };
         
         this.hide = function(do_not_reset){
@@ -194,13 +158,91 @@
             if (this.player_overlay_mode){
                 stb.set_cur_place(module.tv.layer_name);
                 stb.set_cur_layer(module.tv);
-                
-                try {
-                    stb.SetTopWin(0);
-                    stb.SetViewport(0, 0, 0, 0);
-                } catch(e) {
-                    _debug('epg hide viewport restore error:', e);
+            }
+
+            this.return_to_main_menu = false;
+
+            this.hide_tv_preview();
+        };
+
+        this.recalculate_preview_mode = function(){
+            _debug('epg.recalculate_preview_mode');
+
+            if (!module.tv || !module.tv.preview_pos || !module.tv.preview_box){
+                return;
+            }
+
+            var epg_frame_style = window.getComputedStyle(this.tv_preview_box, null);
+            var tv_frame_style = window.getComputedStyle(module.tv.preview_box, null);
+            var frame_delta_x = parseFloat(epg_frame_style.left) - parseFloat(tv_frame_style.left);
+            var frame_delta_y = parseFloat(epg_frame_style.top) - parseFloat(tv_frame_style.top);
+            var video_mode = parseInt(stb.video_mode);
+            var frame_scale = video_mode && stb.graphic_mode ? video_mode / stb.graphic_mode : 1;
+            var frame_correction_x = video_mode == 1080 && stb.graphic_mode == 720 ? 4 : 0;
+
+            this.preview_pos = {
+                "mode"  : module.tv.preview_pos.mode,
+                "xsize" : module.tv.preview_pos.xsize,
+                "ysize" : module.tv.preview_pos.ysize,
+                "x"     : Math.round(module.tv.preview_pos.x + frame_delta_x * frame_scale + frame_correction_x),
+                "y"     : Math.round(module.tv.preview_pos.y + frame_delta_y * frame_scale)
+            };
+
+            var frame_width = (
+                parseFloat(epg_frame_style.width) +
+                parseFloat(epg_frame_style.paddingLeft) +
+                parseFloat(epg_frame_style.paddingRight)
+            ) * frame_scale;
+            var frame_height = (
+                parseFloat(epg_frame_style.height) +
+                parseFloat(epg_frame_style.paddingTop) +
+                parseFloat(epg_frame_style.paddingBottom)
+            ) * frame_scale;
+            var frame_anchor_x = this.preview_pos.x + (frame_width + this.preview_pos.xsize) / 2;
+            var frame_anchor_y = this.preview_pos.y - (frame_height - this.preview_pos.ysize) / 2;
+
+            this.preview_pos.x = Math.round(frame_anchor_x + (this.preview_pos.x - frame_anchor_x) * this.preview_scale);
+            this.preview_pos.y = Math.round(frame_anchor_y + (this.preview_pos.y - frame_anchor_y) * this.preview_scale);
+            this.preview_pos.xsize = Math.round(this.preview_pos.xsize * this.preview_scale);
+            this.preview_pos.ysize = Math.round(this.preview_pos.ysize * this.preview_scale);
+
+            if (stb.player.on && stb.player.is_tv && this.on){
+                _debug('stb.SetViewport', this.preview_pos);
+                stb.SetViewport(this.preview_pos.xsize, this.preview_pos.ysize, this.preview_pos.x, this.preview_pos.y)
+            }
+        };
+
+        this.show_tv_preview = function(){
+            _debug('epg.show_tv_preview');
+
+            try{
+                if (!stb.player.on || !stb.player.is_tv){
+                    return;
                 }
+
+                if (this.tv_preview_box){
+                    this.tv_preview_box.show();
+                }
+
+                stb.SetTopWin(1);
+                this.recalculate_preview_mode();
+            }catch(e){
+                _debug(e);
+            }
+        };
+
+        this.hide_tv_preview = function(){
+            _debug('epg.hide_tv_preview');
+
+            try{
+                if (this.tv_preview_box){
+                    this.tv_preview_box.hide();
+                }
+
+                stb.SetTopWin(0);
+                stb.SetPIG(1, -1, -1, -1);
+            }catch(e){
+                _debug(e);
             }
         };
         
@@ -209,9 +251,6 @@
             
             this.superclass.init.call(this);
             
-            this.preview_box = create_block_element('tv_prev_window', this.dom_obj);
-            this.preview_box.hide();
-
             this.program_info = create_block_element('program_info', this.dom_obj);
             
             this.on_date = create_block_element('on_date', this.dom_obj);
@@ -231,6 +270,13 @@
             var mark4 = create_block_element('time_mark mark-4', this.dom_obj);
             //mark4.style.right = '38px';
             this.time_marks.push(mark4);
+
+            this.tv_preview_box = create_block_element('tv_prev_window', this.dom_obj);
+            this.tv_preview_box.style.webkitTransformOrigin = '100% 0';
+            this.tv_preview_box.style.webkitTransform = 'scale(' + this.preview_scale + ')';
+            this.tv_preview_box.style.transformOrigin = '100% 0';
+            this.tv_preview_box.style.transform = 'scale(' + this.preview_scale + ')';
+            this.tv_preview_box.hide();
         };
         
         this.reset = function(){
@@ -264,13 +310,10 @@
             
             (function(){
 
+                stb.cur_place = 'epg';
+
                 if (!this.active_row['epg_cell'][this.cur_cell_col]){
-                    if (!this.player_overlay_mode){
-                        this.parent.load_params['from_ch_id'] = this.data_items[this.cur_row].ch_id;
-                        this.parent.data_items[this.parent.cur_row].id = 0;
-                        this.parent.show(true);
-                    }
-                    this.hide();
+                    this.play_channel_from_row();
                     return;
                 }
 
@@ -288,19 +331,22 @@
                     var now = new Date().getTime() / 1000;
 
                     if (now > this.active_row['epg_cell'][this.cur_cell_col].data.start_timestamp && now < this.active_row['epg_cell'][this.cur_cell_col].data.stop_timestamp){
-
-                        if (!this.player_overlay_mode){
-                            this.parent.load_params['from_ch_id'] = this.data_items[this.cur_row].ch_id;
-                            this.parent.data_items[this.parent.cur_row].id = 0;
-                            this.parent.show(true);
-                        }
-                        this.hide();
+                        this.play_channel_from_row();
                     }
                 }
             }).bind(key.OK, this);
 
 
             (function(){
+                var return_to_main_menu = this.return_to_main_menu;
+
+                if (return_to_main_menu){
+                    this.hide();
+                    this.parent.hide();
+                    main_menu.show();
+                    return;
+                }
+
                 if (!this.player_overlay_mode){
                     this.parent.load_params['from_ch_id'] = this.data_items[this.cur_row].ch_id;
                     this.parent._show.call(this.parent, this.parent.genre);
@@ -388,6 +434,25 @@
 
             stb.player.play(this.active_row['epg_cell'][this.cur_cell_col].data);
         };
+
+        this.play_channel_from_row = function(){
+            _debug('epg.play_channel_from_row');
+
+            stb.cur_place = 'tv';
+
+            var ch_idx = stb.player.channels.getIdxById(parseInt(this.data_items[this.cur_row].ch_id));
+
+            stb.player.ch_idx = ch_idx || 0;
+            stb.player.cur_media_item = stb.player.channels[stb.player.ch_idx];
+            stb.player.cur_tv_item = stb.player.channels[stb.player.ch_idx];
+            stb.player.last_not_locked_tv_item = stb.player.channels[stb.player.ch_idx];
+
+            this.hide(true);
+
+            stb.player.prev_layer = this;
+            stb.player.need_show_info = 0;
+            stb.player.play(stb.player.cur_media_item);
+        };
         
         this.set_date_period = function(){
             _debug('epg.set_date_period');
@@ -439,8 +504,137 @@
             this.live_line.stop();
             
             this.load_params['ch_id'] = this.ch_id;
-            
-            this.superclass.load_data.call(this);
+
+            this.set_total_items(-1);
+
+            this.loading = true;
+
+            this.loader && this.loader.abort && this.loader.abort();
+
+            this.break_filling_list = true;
+
+            var request_id = ++this.load_request_id;
+
+            if (this.cur_page == 0){
+                this.load_initial_virtual_page(request_id);
+            }else{
+                this.load_virtual_page(this.cur_page, null, request_id);
+            }
+        };
+
+        this.get_page_load_params = function(page){
+            var params = this.load_params.clone();
+            params['p'] = page;
+            return params;
+        };
+
+        this.load_initial_virtual_page = function(request_id){
+            _debug('epg.load_initial_virtual_page');
+
+            this.loader = stb.load(
+                this.get_page_load_params(0),
+                function(result){
+                    if (request_id != this.load_request_id){
+                        return;
+                    }
+
+                    var server_page_rows = parseInt(result.max_page_items, 10);
+                    if (server_page_rows > 0){
+                        this.server_page_rows = server_page_rows;
+                    }
+
+                    var global_row = 0;
+                    if (result.cur_page > 0 && result.selected_item > 0){
+                        global_row = (result.cur_page - 1) * this.server_page_rows + result.selected_item - 1;
+                    }
+
+                    var virtual_page = Math.floor(global_row / this.total_rows) + 1;
+                    var selected_row = global_row % this.total_rows;
+
+                    this.load_virtual_page(virtual_page, selected_row, request_id);
+                },
+                this
+            );
+        };
+
+        this.load_virtual_page = function(page, selected_row, request_id){
+            _debug('epg.load_virtual_page', page, selected_row);
+
+            // The stock API pages in tens, so a six-row page may span two responses.
+            var first_global_row = (page - 1) * this.total_rows;
+            var server_page = Math.floor(first_global_row / this.server_page_rows) + 1;
+            var server_offset = first_global_row % this.server_page_rows;
+
+            this.loader = stb.load(
+                this.get_page_load_params(server_page),
+                function(result){
+                    if (request_id != this.load_request_id){
+                        return;
+                    }
+
+                    var data = result.data.slice(server_offset, server_offset + this.total_rows);
+                    var rows_needed = this.total_rows - data.length;
+
+                    if (rows_needed > 0 && first_global_row + data.length < result.total_items){
+                        this.load_virtual_page_tail(result, data, server_page + 1, rows_needed, page, selected_row, request_id);
+                    }else{
+                        this.finish_virtual_page(result, data, page, selected_row, request_id);
+                    }
+                },
+                this
+            );
+        };
+
+        this.load_virtual_page_tail = function(result, data, server_page, rows_needed, page, selected_row, request_id){
+            _debug('epg.load_virtual_page_tail', server_page, rows_needed);
+
+            this.loader = stb.load(
+                this.get_page_load_params(server_page),
+                function(tail_result){
+                    if (request_id != this.load_request_id){
+                        return;
+                    }
+
+                    data = data.concat(tail_result.data.slice(0, rows_needed));
+                    this.finish_virtual_page(result, data, page, selected_row, request_id);
+                },
+                this
+            );
+        };
+
+        this.finish_virtual_page = function(result, data, page, selected_row, request_id){
+            _debug('epg.finish_virtual_page', page, selected_row);
+
+            if (request_id != this.load_request_id){
+                return;
+            }
+
+            if (selected_row === null){
+                if (page == this.loaded_virtual_page){
+                    selected_row = this.cur_row;
+                }else if (this.page_dir > 0){
+                    selected_row = 0;
+                }else{
+                    selected_row = data.length - 1;
+                }
+            }
+
+            selected_row = Math.max(0, Math.min(selected_row, data.length - 1));
+
+            result.data = data;
+            result.max_page_items = this.total_rows;
+            result.cur_page = page;
+            result.selected_item = data.length ? selected_row + 1 : 0;
+
+            this.break_filling_list = false;
+            this.result = result;
+            this.total_pages = Math.ceil(result.total_items / this.total_rows);
+            this.cur_page = page;
+            this.cur_row = selected_row;
+            this.loaded_virtual_page = page;
+
+            this.set_total_items(result.total_items);
+            this.fill_list(data);
         };
 
         this.fill_dvb_epg = function(data){
@@ -497,7 +691,7 @@
             this.set_passive_cell();
             
             this.set_passive_row();
-            
+
             this.active_row = this.map[num];
             
             this.active_row.row.setAttribute('active', 'active');
