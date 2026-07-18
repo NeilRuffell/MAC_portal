@@ -19,11 +19,25 @@ sed -i "s|mysql_host = .*|mysql_host = ${STALKER_DB_HOST:-stalker-db}|g" "$CONFI
 sed -i "s|mysql_db = .*|mysql_db = ${STALKER_DB_NAME:-stalker_db}|g" "$CONFIG"
 sed -i "s|mysql_user = .*|mysql_user = root|g" "$CONFIG"
 sed -i "s|mysql_pass = .*|mysql_pass = ${STALKER_DB_PASSWORD}|g" "$CONFIG"
-sed -i "s|default_locale = .*|default_locale = en_GB.utf8|g" "$CONFIG"
+sed -i "s|default_locale = .*|default_locale = C.UTF-8|g" "$CONFIG"
+sed -i "s|allowed_locales\\[English\\] = .*|allowed_locales[English] = C.UTF-8|g" "$CONFIG"
+
+echo "Configuring English gettext locale..."
+if ! grep -q '^export LANG=C.UTF-8$' /etc/apache2/envvars; then
+  cat >> /etc/apache2/envvars <<'EOF'
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+export LANGUAGE=en
+EOF
+fi
 
 touch "$CUSTOM"
 sed -i "/^default_language = /d" "$CUSTOM"
 echo "default_language = en" >> "$CUSTOM"
+
+echo "Migrating existing English user locale..."
+mysql -h "${STALKER_DB_HOST:-stalker-db}" -u root -p"${STALKER_DB_PASSWORD}" "${STALKER_DB_NAME:-stalker_db}" \
+  -e "UPDATE users SET locale = 'C.UTF-8' WHERE locale = 'en_GB.utf8';" || true
 
 echo "Patching legacy deploy script..."
 sed -i "s|mysql -u root -p|mysql -h ${STALKER_DB_HOST:-stalker-db} -u root -p${STALKER_DB_PASSWORD}|g" "$BUILD"
