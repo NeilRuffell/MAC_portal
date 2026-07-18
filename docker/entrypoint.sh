@@ -51,6 +51,13 @@ if [ "$BUILD_STATUS" -ne 0 ]; then
   echo "WARNING: deployment returned ${BUILD_STATUS}; starting Apache anyway."
 fi
 
+echo "Applying packaged server customizations..."
+install -m 0644 /opt/mac-portal-overrides/server/lib/epg.class.php "${PORTAL_ROOT}/server/lib/epg.class.php"
+if ! cmp -s /opt/mac-portal-overrides/server/lib/epg.class.php "${PORTAL_ROOT}/server/lib/epg.class.php"; then
+  echo "ERROR: failed to install the packaged EPG server customization."
+  exit 1
+fi
+
 echo "Starting services..."
 service memcached start || true
 service apache2 stop || true
