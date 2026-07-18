@@ -135,17 +135,10 @@
 
             this.player_overlay_mode = player_overlay_mode;
 
-            if (player_overlay_mode){
-                this.dom_obj.style.background = 'none';
-                this.dom_obj.setAttribute("overlay_mode", "1");
-                this.color_buttons.buttons_bar.hide();
-                this.header_path.hide();
-            }else{
-                this.dom_obj.style.background = '';
-                this.dom_obj.setAttribute("overlay_mode", "0");
-                this.color_buttons.buttons_bar.show();
-                this.header_path.show();
-            }
+            this.dom_obj.style.background = '';
+            this.dom_obj.setAttribute("overlay_mode", "0");
+            this.color_buttons.buttons_bar.show();
+            this.header_path.show();
             
             this.superclass.show.call(this, false);
 
