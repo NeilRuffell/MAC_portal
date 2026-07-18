@@ -1912,6 +1912,26 @@
             module.tv.genre  = genres[0];
 
             var map = [];
+
+            var show_epg_for_genre = function(genre){
+                module.tv.genre = genre;
+                module.tv.load_params['genre'] = genre.id;
+
+                main_menu.hide();
+
+                if (!module.epg){
+                    module.tv._show(genre);
+                    return;
+                }
+
+                if (stb.player.on){
+                    module.tv.auto_play = true;
+                    stb.player.stop();
+                }
+
+                module.epg.ch_id = stb.player.cur_tv_item && stb.player.cur_tv_item.id ? stb.player.cur_tv_item.id : 0;
+                module.epg.show();
+            };
     
             for(var i=0; i<genres.length; i++){
                 map.push(
@@ -1927,13 +1947,11 @@
                                 if (genre.alias == 'for adults'){
 
                                     module.tv.parent_password_promt.callback = function(){
-                                        main_menu.hide();
-                                        module.tv._show(genre);
+                                        show_epg_for_genre(genre);
                                     };
                                     module.tv.parent_password_promt.show();
                                 }else{
-                                    main_menu.hide();
-                                    module.tv._show(genre);
+                                    show_epg_for_genre(genre);
                                 }
                             }
                             
