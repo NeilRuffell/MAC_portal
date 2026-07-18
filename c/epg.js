@@ -130,13 +130,13 @@
             this.player_overlay_mode = player_overlay_mode;
 
             if (player_overlay_mode){
-                this.dom_obj.setAttribute('overlay_mode', '1');
                 this.dom_obj.style.background = 'none';
+                this.dom_obj.setAttribute("overlay_mode", "1");
                 this.color_buttons.buttons_bar.hide();
                 this.header_path.hide();
             }else{
-                this.dom_obj.removeAttribute('overlay_mode');
                 this.dom_obj.style.background = '';
+                this.dom_obj.setAttribute("overlay_mode", "0");
                 this.color_buttons.buttons_bar.show();
                 this.header_path.show();
             }
@@ -158,6 +158,8 @@
                 stb.set_cur_place(module.tv.layer_name);
                 stb.set_cur_layer(module.tv);
             }
+
+            this.return_to_main_menu = false;
         };
         
         this.init = function(){
@@ -217,13 +219,10 @@
             
             (function(){
 
+                stb.cur_place = 'epg';
+
                 if (!this.active_row['epg_cell'][this.cur_cell_col]){
-                    if (!this.player_overlay_mode){
-                        this.parent.load_params['from_ch_id'] = this.data_items[this.cur_row].ch_id;
-                        this.parent.data_items[this.parent.cur_row].id = 0;
-                        this.parent.show(true);
-                    }
-                    this.hide();
+                    this.play_channel_from_row();
                     return;
                 }
 
@@ -241,19 +240,22 @@
                     var now = new Date().getTime() / 1000;
 
                     if (now > this.active_row['epg_cell'][this.cur_cell_col].data.start_timestamp && now < this.active_row['epg_cell'][this.cur_cell_col].data.stop_timestamp){
-
-                        if (!this.player_overlay_mode){
-                            this.parent.load_params['from_ch_id'] = this.data_items[this.cur_row].ch_id;
-                            this.parent.data_items[this.parent.cur_row].id = 0;
-                            this.parent.show(true);
-                        }
-                        this.hide();
+                        this.play_channel_from_row();
                     }
                 }
             }).bind(key.OK, this);
 
 
             (function(){
+                var return_to_main_menu = this.return_to_main_menu;
+
+                if (return_to_main_menu){
+                    this.hide();
+                    this.parent.hide();
+                    main_menu.show();
+                    return;
+                }
+
                 if (!this.player_overlay_mode){
                     this.parent.load_params['from_ch_id'] = this.data_items[this.cur_row].ch_id;
                     this.parent._show.call(this.parent, this.parent.genre);
@@ -340,6 +342,25 @@
             }
 
             stb.player.play(this.active_row['epg_cell'][this.cur_cell_col].data);
+        };
+
+        this.play_channel_from_row = function(){
+            _debug('epg.play_channel_from_row');
+
+            stb.cur_place = 'tv';
+
+            var ch_idx = stb.player.channels.getIdxById(parseInt(this.data_items[this.cur_row].ch_id));
+
+            stb.player.ch_idx = ch_idx || 0;
+            stb.player.cur_media_item = stb.player.channels[stb.player.ch_idx];
+            stb.player.cur_tv_item = stb.player.channels[stb.player.ch_idx];
+            stb.player.last_not_locked_tv_item = stb.player.channels[stb.player.ch_idx];
+
+            this.hide(true);
+
+            stb.player.prev_layer = this;
+            stb.player.need_show_info = 0;
+            stb.player.play(stb.player.cur_media_item);
         };
         
         this.set_date_period = function(){
