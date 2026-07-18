@@ -79,6 +79,11 @@
         this.recalculate_preview_mode = function () {
             _debug('tv.recalculate_preview_mode');
 
+            if (typeof(module) != 'undefined' && module.epg && module.epg.on && module.epg.recalculate_preview_mode){
+                module.epg.recalculate_preview_mode();
+                return;
+            }
+
             try{
                 stb.video_mode = stb.RDir('vmode');
             }catch(e){

@@ -1388,6 +1388,8 @@ player.prototype.event_callback = function(event, params){
                 stb.notice.hide();
             }
 
+            this.reapply_epg_preview();
+
             if (this.is_tv && this.cur_tv_item && this.cur_tv_item.ready_to_timeshift && module.time_shift_local && module.time_shift_local.enabled){
 
                 if (stb.profile.ts_delay !== 'on_pause'){
@@ -2803,8 +2805,22 @@ player.prototype.play_now = function(item){
             }else{
                 stb.Play(uri);
             }
+
+            this.reapply_epg_preview();
         }
     }catch(e){_debug(e)}
+};
+
+player.prototype.reapply_epg_preview = function(){
+    _debug('player.reapply_epg_preview');
+
+    try{
+        if (module.epg && module.epg.on && module.epg.show_tv_preview){
+            module.epg.show_tv_preview();
+        }
+    }catch(e){
+        _debug(e);
+    }
 };
 
 player.prototype.stop = function(){

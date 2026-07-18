@@ -8,7 +8,7 @@
         
         this.layer_name = 'epg';
         
-        this.total_rows  = 10;
+        this.total_rows  = 6;
         
         this.active_row_offset = 0;
         
@@ -35,7 +35,9 @@
         this.time_marks = [];
         
         this.marks_map = [];
-        
+
+        this.preview_scale = 0.60;
+
         this.live_line = {
             
             on : false,
@@ -142,6 +144,8 @@
             }
             
             this.superclass.show.call(this, false);
+
+            this.show_tv_preview();
         };
         
         this.hide = function(do_not_reset){
@@ -160,6 +164,89 @@
             }
 
             this.return_to_main_menu = false;
+
+            this.hide_tv_preview();
+        };
+
+        this.recalculate_preview_mode = function(){
+            _debug('epg.recalculate_preview_mode');
+
+            if (!module.tv || !module.tv.preview_pos || !module.tv.preview_box){
+                return;
+            }
+
+            var epg_frame_style = window.getComputedStyle(this.tv_preview_box, null);
+            var tv_frame_style = window.getComputedStyle(module.tv.preview_box, null);
+            var frame_delta_x = parseFloat(epg_frame_style.left) - parseFloat(tv_frame_style.left);
+            var frame_delta_y = parseFloat(epg_frame_style.top) - parseFloat(tv_frame_style.top);
+            var video_mode = parseInt(stb.video_mode);
+            var frame_scale = video_mode && stb.graphic_mode ? video_mode / stb.graphic_mode : 1;
+            var frame_correction_x = video_mode == 1080 && stb.graphic_mode == 720 ? 4 : 0;
+
+            this.preview_pos = {
+                "mode"  : module.tv.preview_pos.mode,
+                "xsize" : module.tv.preview_pos.xsize,
+                "ysize" : module.tv.preview_pos.ysize,
+                "x"     : Math.round(module.tv.preview_pos.x + frame_delta_x * frame_scale + frame_correction_x),
+                "y"     : Math.round(module.tv.preview_pos.y + frame_delta_y * frame_scale)
+            };
+
+            var frame_width = (
+                parseFloat(epg_frame_style.width) +
+                parseFloat(epg_frame_style.paddingLeft) +
+                parseFloat(epg_frame_style.paddingRight)
+            ) * frame_scale;
+            var frame_height = (
+                parseFloat(epg_frame_style.height) +
+                parseFloat(epg_frame_style.paddingTop) +
+                parseFloat(epg_frame_style.paddingBottom)
+            ) * frame_scale;
+            var frame_anchor_x = this.preview_pos.x + (frame_width + this.preview_pos.xsize) / 2;
+            var frame_anchor_y = this.preview_pos.y - (frame_height - this.preview_pos.ysize) / 2;
+
+            this.preview_pos.x = Math.round(frame_anchor_x + (this.preview_pos.x - frame_anchor_x) * this.preview_scale);
+            this.preview_pos.y = Math.round(frame_anchor_y + (this.preview_pos.y - frame_anchor_y) * this.preview_scale);
+            this.preview_pos.xsize = Math.round(this.preview_pos.xsize * this.preview_scale);
+            this.preview_pos.ysize = Math.round(this.preview_pos.ysize * this.preview_scale);
+
+            if (stb.player.on && stb.player.is_tv && this.on){
+                _debug('stb.SetViewport', this.preview_pos);
+                stb.SetViewport(this.preview_pos.xsize, this.preview_pos.ysize, this.preview_pos.x, this.preview_pos.y)
+            }
+        };
+
+        this.show_tv_preview = function(){
+            _debug('epg.show_tv_preview');
+
+            try{
+                if (!stb.player.on || !stb.player.is_tv){
+                    return;
+                }
+
+                if (this.tv_preview_box){
+                    this.tv_preview_box.show();
+                }
+
+                stb.SetTopWin(1);
+                this.recalculate_preview_mode();
+            }catch(e){
+                _debug(e);
+            }
+        };
+
+        this.hide_tv_preview = function(){
+            _debug('epg.hide_tv_preview');
+
+            try{
+                if (this.tv_preview_box){
+                    this.tv_preview_box.hide();
+                }
+
+                stb.SetTopWin(0);
+                stb.SetPIG(1, -1, -1, -1);
+            }catch(e){
+                _debug(e);
+            }
         };
         
         this.init = function(){
@@ -186,6 +273,13 @@
             var mark4 = create_block_element('time_mark mark-4', this.dom_obj);
             //mark4.style.right = '38px';
             this.time_marks.push(mark4);
+
+            this.tv_preview_box = create_block_element('tv_prev_window', this.dom_obj);
+            this.tv_preview_box.style.webkitTransformOrigin = '100% 0';
+            this.tv_preview_box.style.webkitTransform = 'scale(' + this.preview_scale + ')';
+            this.tv_preview_box.style.transformOrigin = '100% 0';
+            this.tv_preview_box.style.transform = 'scale(' + this.preview_scale + ')';
+            this.tv_preview_box.hide();
         };
         
         this.reset = function(){

@@ -11,7 +11,7 @@
 #epg .active_row_bg, #epg .blue_row_bg[active="active"]{
     position: absolute;
     left: 49px;
-    top: 176px;
+    top: 312px;
     width: 263px;
     height: 34px;
     background-image: url("i/tv_table.png");
@@ -194,7 +194,7 @@
 
 #epg .on_date{
     position: absolute;
-    top: 156px;
+    top: 292px;
     right: 495px;
     text-align: right;
     width: 210px;
@@ -203,7 +203,7 @@
 
 #epg .time_mark{
     position: absolute;
-    top: 156px;
+    top: 292px;
     color: #fff;
 }
 
@@ -225,7 +225,7 @@
 
 #epg .live_line_container{
     position: absolute;
-    top: 176px;
+    top: 312px;
     left: 231px; /* 231px-678px */
     width: 447px;
 }
@@ -234,6 +234,16 @@
     position: absolute;
     background-color: rgba(255, 0, 0, 0.4);
     width: 2px;
-    height: 339px;
+    height: 203px;
     -webkit-transition: all 0.2s linear;
+}
+
+#epg .tv_prev_window{
+    position: absolute;
+    background: url("i/tv_prev_bg.png");
+    height: 256px;
+    width: 320px;
+    top: 37px;
+    left: 345px;
+    padding: 5px;
 }
