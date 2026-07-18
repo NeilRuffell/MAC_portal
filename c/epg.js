@@ -8,10 +8,10 @@
         
         this.layer_name = 'epg';
         
-        this.total_rows  = 10;
-
-        this.visible_rows = 6;
-        this.row_view_start = 0;
+        this.total_rows = 6;
+        this.server_page_rows = 10;
+        this.loaded_virtual_page = 0;
+        this.load_request_id = 0;
         
         this.active_row_offset = 0;
         
@@ -127,6 +127,7 @@
             _debug('epg.show', do_not_load, player_overlay_mode);
             
             this.cur_page = 0;
+            this.loaded_virtual_page = 0;
             
             this.parent.on = false;
             
@@ -510,8 +511,137 @@
             this.live_line.stop();
             
             this.load_params['ch_id'] = this.ch_id;
-            
-            this.superclass.load_data.call(this);
+
+            this.set_total_items(-1);
+
+            this.loading = true;
+
+            this.loader && this.loader.abort && this.loader.abort();
+
+            this.break_filling_list = true;
+
+            var request_id = ++this.load_request_id;
+
+            if (this.cur_page == 0){
+                this.load_initial_virtual_page(request_id);
+            }else{
+                this.load_virtual_page(this.cur_page, null, request_id);
+            }
+        };
+
+        this.get_page_load_params = function(page){
+            var params = this.load_params.clone();
+            params['p'] = page;
+            return params;
+        };
+
+        this.load_initial_virtual_page = function(request_id){
+            _debug('epg.load_initial_virtual_page');
+
+            this.loader = stb.load(
+                this.get_page_load_params(0),
+                function(result){
+                    if (request_id != this.load_request_id){
+                        return;
+                    }
+
+                    var server_page_rows = parseInt(result.max_page_items, 10);
+                    if (server_page_rows > 0){
+                        this.server_page_rows = server_page_rows;
+                    }
+
+                    var global_row = 0;
+                    if (result.cur_page > 0 && result.selected_item > 0){
+                        global_row = (result.cur_page - 1) * this.server_page_rows + result.selected_item - 1;
+                    }
+
+                    var virtual_page = Math.floor(global_row / this.total_rows) + 1;
+                    var selected_row = global_row % this.total_rows;
+
+                    this.load_virtual_page(virtual_page, selected_row, request_id);
+                },
+                this
+            );
+        };
+
+        this.load_virtual_page = function(page, selected_row, request_id){
+            _debug('epg.load_virtual_page', page, selected_row);
+
+            // The stock API pages in tens, so a six-row page may span two responses.
+            var first_global_row = (page - 1) * this.total_rows;
+            var server_page = Math.floor(first_global_row / this.server_page_rows) + 1;
+            var server_offset = first_global_row % this.server_page_rows;
+
+            this.loader = stb.load(
+                this.get_page_load_params(server_page),
+                function(result){
+                    if (request_id != this.load_request_id){
+                        return;
+                    }
+
+                    var data = result.data.slice(server_offset, server_offset + this.total_rows);
+                    var rows_needed = this.total_rows - data.length;
+
+                    if (rows_needed > 0 && first_global_row + data.length < result.total_items){
+                        this.load_virtual_page_tail(result, data, server_page + 1, rows_needed, page, selected_row, request_id);
+                    }else{
+                        this.finish_virtual_page(result, data, page, selected_row, request_id);
+                    }
+                },
+                this
+            );
+        };
+
+        this.load_virtual_page_tail = function(result, data, server_page, rows_needed, page, selected_row, request_id){
+            _debug('epg.load_virtual_page_tail', server_page, rows_needed);
+
+            this.loader = stb.load(
+                this.get_page_load_params(server_page),
+                function(tail_result){
+                    if (request_id != this.load_request_id){
+                        return;
+                    }
+
+                    data = data.concat(tail_result.data.slice(0, rows_needed));
+                    this.finish_virtual_page(result, data, page, selected_row, request_id);
+                },
+                this
+            );
+        };
+
+        this.finish_virtual_page = function(result, data, page, selected_row, request_id){
+            _debug('epg.finish_virtual_page', page, selected_row);
+
+            if (request_id != this.load_request_id){
+                return;
+            }
+
+            if (selected_row === null){
+                if (page == this.loaded_virtual_page){
+                    selected_row = this.cur_row;
+                }else if (this.page_dir > 0){
+                    selected_row = 0;
+                }else{
+                    selected_row = data.length - 1;
+                }
+            }
+
+            selected_row = Math.max(0, Math.min(selected_row, data.length - 1));
+
+            result.data = data;
+            result.max_page_items = this.total_rows;
+            result.cur_page = page;
+            result.selected_item = data.length ? selected_row + 1 : 0;
+
+            this.break_filling_list = false;
+            this.result = result;
+            this.total_pages = Math.ceil(result.total_items / this.total_rows);
+            this.cur_page = page;
+            this.cur_row = selected_row;
+            this.loaded_virtual_page = page;
+
+            this.set_total_items(result.total_items);
+            this.fill_list(data);
         };
 
         this.fill_dvb_epg = function(data){
@@ -562,36 +692,6 @@
             }
         };
         
-        this.update_row_view = function(active_row){
-            var visible_rows = Math.min(this.visible_rows, this.total_items);
-            var max_start = Math.max(0, this.total_items - visible_rows);
-            var start = this.row_view_start;
-
-            if (active_row < start){
-                start = active_row;
-            }else if (active_row >= start + visible_rows){
-                start = active_row - visible_rows + 1;
-            }
-
-            start = Math.max(0, Math.min(start, max_start));
-
-            if (typeof(this.row_view_top) == 'undefined'){
-                this.row_view_top = this.map[0].row.offsetTop;
-                this.row_view_height = this.map[0].row.clientHeight;
-            }
-
-            for (var i=0; i<this.total_rows; i++){
-                if (i >= start && i < start + visible_rows){
-                    this.map[i].row.moveY(this.row_view_top + (i - start) * this.row_view_height);
-                    this.map[i].row.show();
-                }else{
-                    this.map[i].row.hide();
-                }
-            }
-
-            this.row_view_start = start;
-        };
-
         this.set_active_row = function(num){
             _debug('epg.set_active_row', num);
             
@@ -599,8 +699,6 @@
             
             this.set_passive_row();
 
-            this.update_row_view(num);
-            
             this.active_row = this.map[num];
             
             this.active_row.row.setAttribute('active', 'active');
