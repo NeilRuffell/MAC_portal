@@ -8,10 +8,7 @@
         
         this.layer_name = 'epg';
         
-        this.total_rows  = 10;
-
-        this.visible_rows = 6;
-        this.row_view_start = 0;
+        this.total_rows  = 6;
         
         this.active_row_offset = 0;
         
@@ -562,36 +559,6 @@
             }
         };
         
-        this.update_row_view = function(active_row){
-            var visible_rows = Math.min(this.visible_rows, this.total_items);
-            var max_start = Math.max(0, this.total_items - visible_rows);
-            var start = this.row_view_start;
-
-            if (active_row < start){
-                start = active_row;
-            }else if (active_row >= start + visible_rows){
-                start = active_row - visible_rows + 1;
-            }
-
-            start = Math.max(0, Math.min(start, max_start));
-
-            if (typeof(this.row_view_top) == 'undefined'){
-                this.row_view_top = this.map[0].row.offsetTop;
-                this.row_view_height = this.map[0].row.clientHeight;
-            }
-
-            for (var i=0; i<this.total_rows; i++){
-                if (i >= start && i < start + visible_rows){
-                    this.map[i].row.moveY(this.row_view_top + (i - start) * this.row_view_height);
-                    this.map[i].row.show();
-                }else{
-                    this.map[i].row.hide();
-                }
-            }
-
-            this.row_view_start = start;
-        };
-
         this.set_active_row = function(num){
             _debug('epg.set_active_row', num);
             
@@ -599,8 +566,6 @@
             
             this.set_passive_row();
 
-            this.update_row_view(num);
-            
             this.active_row = this.map[num];
             
             this.active_row.row.setAttribute('active', 'active');
