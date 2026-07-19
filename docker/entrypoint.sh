@@ -83,15 +83,24 @@ if (strpos($code, $parse_marker) === false) {
 
 $output_marker = "M3U parsed channel number output";
 if (strpos($code, $output_marker) === false) {
-    $pattern = "/('cmd'\s*=>\s*!empty\(\$row\['cmd'\]\)\s*\?\s*\$row\['cmd'\]\s*:\s*'',\s*)('logo'\s*=>)/";
-    $replacement = "$1/* M3U parsed channel number output */ 'number' => isset(\$row['number']) ? \$row['number'] : '', $2";
-    $code = preg_replace($pattern, $replacement, $code, 1, $count);
-    if ($count !== 1) {
+    $map_start = strpos($code, "\$data['data']['channels'] = \\array_values(\\array_map(function (\$row) {");
+    if ($map_start === false) {
+        $map_start = strpos($code, "\$data['data']['channels'] = array_values(array_map(function (\$row) {");
+    }
+    if ($map_start === false) {
         fwrite(STDERR, "Unable to patch M3U tv-chno import: channel output point not found\n");
         exit(1);
     }
-}
 
+    $logo_pos = strpos($code, "'logo' =>", $map_start);
+    if ($logo_pos === false) {
+        fwrite(STDERR, "Unable to patch M3U tv-chno import: channel logo output point not found\n");
+        exit(1);
+    }
+
+    $number_output = "/* M3U parsed channel number output */ 'number' => isset(\$row['number']) ? \$row['number'] : '', ";
+    $code = substr($code, 0, $logo_pos) . $number_output . substr($code, $logo_pos);
+}
 file_put_contents($file, $code);
 ' "$M3U_CONTROLLER" || exit 1
 
