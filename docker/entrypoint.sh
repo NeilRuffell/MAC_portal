@@ -70,17 +70,29 @@ M3U_CONTROLLER="${PORTAL_ROOT}/admin/src/Controller/TvChannelsController.php"
 php -r '
 $file = $argv[1];
 $code = file_get_contents($file);
-$marker = "M3U tv-chno channel number support";
-if (strpos($code, $marker) !== false) {
-    exit(0);
+$parse_marker = "M3U tv-chno channel number support";
+if (strpos($code, $parse_marker) === false) {
+    $needle = "        return \$result;\n    }\n    public function save_m3u_item()";
+    $replacement = "        // M3U tv-chno channel number support.\n        if (!isset(\$result[\"number\"]) && isset(\$result[\"chno\"])) {\n            \$result[\"number\"] = \$result[\"chno\"];\n        }\n        if (!isset(\$result[\"number\"]) && preg_match(\"/(?:^|\\\\s)(?:tv-chno|tvg-chno|chno)\\\\s*=\\\\s*[\\\\\\\"\\\\x27]?(\\\\d+)[\\\\\\\"\\\\x27]?/i\", \$row, \$matches)) {\n            \$result[\"number\"] = \$matches[1];\n        }\n        return \$result;\n    }\n    public function save_m3u_item()";
+    if (strpos($code, $needle) === false) {
+        fwrite(STDERR, "Unable to patch M3U tv-chno import: parseInfoRow return point not found\n");
+        exit(1);
+    }
+    $code = str_replace($needle, $replacement, $code);
 }
-$needle = "        return \$result;\n    }\n    public function save_m3u_item()";
-$replacement = "        // M3U tv-chno channel number support.\n        if (!isset(\$result[\"number\"]) && isset(\$result[\"chno\"])) {\n            \$result[\"number\"] = \$result[\"chno\"];\n        }\n        if (!isset(\$result[\"number\"]) && preg_match(\"/(?:^|\\\\s)(?:tv-chno|tvg-chno|chno)\\\\s*=\\\\s*[\\\\\\\"\\\\x27]?(\\\\d+)[\\\\\\\"\\\\x27]?/i\", \$row, \$matches)) {\n            \$result[\"number\"] = \$matches[1];\n        }\n        return \$result;\n    }\n    public function save_m3u_item()";
-if (strpos($code, $needle) === false) {
-    fwrite(STDERR, "Unable to patch M3U tv-chno import: parseInfoRow return point not found\n");
-    exit(1);
+
+$output_marker = "M3U parsed channel number output";
+if (strpos($code, $output_marker) === false) {
+    $needle = "'cmd' => !empty(\$row['cmd']) ? \$row['cmd'] : '', 'logo'";
+    $replacement = "'cmd' => !empty(\$row['cmd']) ? \$row['cmd'] : '', /* M3U parsed channel number output */ 'number' => isset(\$row['number']) ? \$row['number'] : '', 'logo'";
+    if (strpos($code, $needle) === false) {
+        fwrite(STDERR, "Unable to patch M3U tv-chno import: channel output point not found\n");
+        exit(1);
+    }
+    $code = str_replace($needle, $replacement, $code);
 }
-file_put_contents($file, str_replace($needle, $replacement, $code));
+
+file_put_contents($file, $code);
 ' "$M3U_CONTROLLER" || exit 1
 
 echo "Starting services..."
