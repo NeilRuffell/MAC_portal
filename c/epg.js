@@ -41,6 +41,8 @@
 
         this.preview_scale = 0.60;
 
+        this.quick_ch_switch = {"on" : false, "hide_to" : 3000};
+
         this.live_line = {
             
             on : false,
@@ -147,7 +149,11 @@
         
         this.hide = function(do_not_reset){
             _debug('epg.hide');
-            
+
+            if (this.quick_ch_switch.dom_obj){
+                this.cancel_quick_ch_switch();
+            }
+
             this.superclass.hide.call(this, do_not_reset);
             
             this.live_line.stop();
@@ -277,6 +283,8 @@
             this.tv_preview_box.style.transformOrigin = '100% 0';
             this.tv_preview_box.style.transform = 'scale(' + this.preview_scale + ')';
             this.tv_preview_box.hide();
+
+            this.init_quick_ch_switch();
         };
         
         this.reset = function(){
@@ -309,6 +317,11 @@
             }).bind(key.MENU, this);
             
             (function(){
+
+                if (this.quick_ch_switch.on){
+                    this.hide_quick_ch_switch();
+                    return;
+                }
 
                 stb.cur_place = 'epg';
 
@@ -367,20 +380,165 @@
                 .bind(key.REW, this)
                 .bind(key.REC, this)
                 .bind(key.PAUSE, this)
-                .bind(key.BACK, this)
                 .bind(key.APP, this)
                 .bind(key.AUDIO, this)
-                .bind(key.NUM0, this)
-                .bind(key.NUM1, this)
-                .bind(key.NUM2, this)
-                .bind(key.NUM3, this)
-                .bind(key.NUM4, this)
-                .bind(key.NUM5, this)
-                .bind(key.NUM6, this)
-                .bind(key.NUM7, this)
-                .bind(key.NUM8, this)
-                .bind(key.NUM9, this)
                 .bind(key.INFO, this);
+
+            this.show_quick_ch_switch.bind(key.NUM1, this, 1);
+            this.show_quick_ch_switch.bind(key.NUM2, this, 2);
+            this.show_quick_ch_switch.bind(key.NUM3, this, 3);
+            this.show_quick_ch_switch.bind(key.NUM4, this, 4);
+            this.show_quick_ch_switch.bind(key.NUM5, this, 5);
+            this.show_quick_ch_switch.bind(key.NUM6, this, 6);
+            this.show_quick_ch_switch.bind(key.NUM7, this, 7);
+            this.show_quick_ch_switch.bind(key.NUM8, this, 8);
+            this.show_quick_ch_switch.bind(key.NUM9, this, 9);
+            this.show_quick_ch_switch.bind(key.NUM0, this, 0);
+
+            this.del_quick_go_ch.bind(key.BACK, this);
+        };
+
+        this.init_quick_ch_switch = function(){
+            _debug('epg.init_quick_ch_switch');
+
+            this.quick_ch_switch.dom_obj = create_block_element('quick_ch_switch');
+            this.quick_ch_switch.input = create_block_element('quick_ch_input', this.quick_ch_switch.dom_obj);
+            this.quick_ch_switch.dom_obj.style.zIndex = 1000;
+
+            if (['MAG351', 'MAG256', 'MAG257'].indexOf(stb.type) != -1){
+                this.quick_ch_switch.input.style.marginTop = '5px';
+            }
+
+            this.quick_ch_switch.dom_obj.hide();
+        };
+
+        this.show_quick_ch_switch = function(num){
+            _debug('epg.show_quick_ch_switch', num);
+
+            if (!this.quick_ch_switch.on){
+                try{
+                    stb.SetTopWin(0);
+                }catch(e){
+                    _debug(e);
+                }
+
+                this.quick_ch_switch.dom_obj.show();
+                this.quick_ch_switch.on = true;
+                this.position_quick_ch_switch();
+            }
+
+            if (this.quick_ch_switch.input.innerHTML.length < 5){
+                if (this.quick_ch_switch.input.innerHTML.length != 0 || num != 0){
+                    this.quick_ch_switch.input.innerHTML += '' + num;
+                }
+            }
+
+            this.t_hide_quick_ch_switch();
+        };
+
+        this.position_quick_ch_switch = function(){
+            _debug('epg.position_quick_ch_switch');
+
+            if (!this.preview_pos || !this.quick_ch_switch.dom_obj){
+                return;
+            }
+
+            var video_mode = parseInt(stb.video_mode, 10);
+            var graphic_mode = parseInt(stb.graphic_mode, 10);
+            var video_to_graphic_scale = video_mode && graphic_mode ? graphic_mode / video_mode : 1;
+            var left = Math.round(
+                (this.preview_pos.x + this.preview_pos.xsize / 2) * video_to_graphic_scale -
+                this.quick_ch_switch.dom_obj.offsetWidth / 2
+            );
+            var top = Math.round(
+                (this.preview_pos.y + this.preview_pos.ysize / 2) * video_to_graphic_scale -
+                this.quick_ch_switch.dom_obj.offsetHeight / 2
+            );
+
+            this.quick_ch_switch.dom_obj.style.left = left + 'px';
+            this.quick_ch_switch.dom_obj.style.top = top + 'px';
+
+            if (stb.player.quick_ch_switch && stb.player.quick_ch_switch.dom_obj){
+                stb.player.quick_ch_switch.dom_obj.style.left = left + 'px';
+                stb.player.quick_ch_switch.dom_obj.style.top = top + 'px';
+            }
+        };
+
+        this.quick_go_to_ch = function(){
+            _debug('epg.quick_go_to_ch');
+
+            var ch_num = parseInt(this.quick_ch_switch.input.innerHTML, 10);
+            var channels = stb.user.fav_itv_on ? stb.player.fav_channels : stb.player.channels;
+            var ch_idx;
+            var item;
+
+            if (isNaN(ch_num) || !channels){
+                return;
+            }
+
+            ch_idx = channels.getIdxByVal('number', ch_num);
+
+            if (ch_idx === null || ch_idx < 0 || !channels[ch_idx]){
+                return;
+            }
+
+            item = channels[ch_idx];
+            this.ch_id = item.id;
+            this.cur_page = 0;
+            this.load_data();
+        };
+
+        this.del_quick_go_ch = function(){
+            _debug('epg.del_quick_go_ch');
+
+            if (!this.quick_ch_switch.on){
+                return;
+            }
+
+            this.t_hide_quick_ch_switch();
+            this.quick_ch_switch.input.innerHTML = this.quick_ch_switch.input.innerHTML.substr(0, this.quick_ch_switch.input.innerHTML.length - 1);
+        };
+
+        this.t_hide_quick_ch_switch = function(){
+            _debug('epg.t_hide_quick_ch_switch');
+
+            window.clearTimeout(this.quick_ch_switch.hide_timer);
+
+            var self = this;
+            this.quick_ch_switch.hide_timer = window.setTimeout(function(){
+                self.hide_quick_ch_switch();
+            }, this.quick_ch_switch.hide_to);
+        };
+
+        this.hide_quick_ch_switch = function(){
+            _debug('epg.hide_quick_ch_switch');
+
+            if (!this.quick_ch_switch.on){
+                return;
+            }
+
+            this.quick_go_to_ch();
+            this.cancel_quick_ch_switch();
+        };
+
+        this.cancel_quick_ch_switch = function(){
+            _debug('epg.cancel_quick_ch_switch');
+
+            var restore_preview = this.quick_ch_switch.on && this.on && stb.player.on && stb.player.is_tv;
+
+            window.clearTimeout(this.quick_ch_switch.hide_timer);
+            this.quick_ch_switch.dom_obj.hide();
+            this.quick_ch_switch.on = false;
+            this.quick_ch_switch.input.innerHTML = '';
+
+            if (restore_preview){
+                try{
+                    stb.SetTopWin(1);
+                    this.recalculate_preview_mode();
+                }catch(e){
+                    _debug(e);
+                }
+            }
         };
 
         this.play = function(rec_id){
