@@ -1,11 +1,12 @@
 <?php
 
-if ($argc < 2) {
-    fwrite(STDERR, "Usage: php patch-m3u-tv-chno.php <TvChannelsController.php>\n");
+if ($argc < 3) {
+    fwrite(STDERR, "Usage: php patch-m3u-tv-chno.php <portal-root> <TvChannelsController.php>\n");
     exit(1);
 }
 
-$file = $argv[1];
+$portalRoot = rtrim($argv[1], '/');
+$file = $argv[2];
 $code = file_get_contents($file);
 
 if ($code === false) {
@@ -84,3 +85,31 @@ if ($lintStatus !== 0) {
     exit($lintStatus);
 }
 
+$jsFile = $portalRoot . '/admin/resources/views/default/TvChannels/m3u_import/m3u_import.js.twig';
+$js = file_get_contents($jsFile);
+if ($js === false) {
+    fwrite(STDERR, "Unable to read {$jsFile}\n");
+    exit(1);
+}
+
+$jsMarker = 'M3U tv-chno preferred channel number';
+if (strpos($js, $jsMarker) === false) {
+    $needle = "                    item['number'] = (free_number_exists && i < auto_fill) ? last_channel_number + i + 1: '';";
+    $replacement =
+        "                    // {$jsMarker}.\n" .
+        "                    item['number'] = (obj.data.channels[i].number !== undefined && obj.data.channels[i].number !== null && obj.data.channels[i].number !== '') ? obj.data.channels[i].number : ((free_number_exists && i < auto_fill) ? last_channel_number + i + 1: '');";
+
+    if (strpos($js, $needle) === false) {
+        $linePos = strpos($js, "item['number']");
+        $snippet = $linePos === false ? substr($js, 0, 1200) : substr($js, max(0, $linePos - 400), 1200);
+        fwrite(STDERR, "Unable to patch M3U tv-chno import: JS number assignment not found near:\n{$snippet}\n");
+        exit(1);
+    }
+
+    $js = str_replace($needle, $replacement, $js);
+}
+
+if (file_put_contents($jsFile, $js) === false) {
+    fwrite(STDERR, "Unable to write {$jsFile}\n");
+    exit(1);
+}

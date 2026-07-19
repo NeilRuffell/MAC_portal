@@ -67,7 +67,7 @@ fi
 
 echo "Patching M3U tv-chno import..."
 M3U_CONTROLLER="${PORTAL_ROOT}/admin/src/Controller/TvChannelsController.php"
-php /usr/local/bin/patch-m3u-tv-chno.php "$M3U_CONTROLLER" || exit 1
+php /usr/local/bin/patch-m3u-tv-chno.php "$PORTAL_ROOT" "$M3U_CONTROLLER" || exit 1
 
 echo "Starting services..."
 service memcached start || true
