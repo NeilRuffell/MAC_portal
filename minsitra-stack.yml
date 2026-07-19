@@ -38,11 +38,11 @@ services:
     #     target: /var/www/html/stalker_portal/c/tv.js
     #     bind:
     #       create_host_path: false
-      - type: bind
-        source: /mnt/zfs-01-ssd/apps/ministra/custom-c/epg.js
-        target: /var/www/html/stalker_portal/c/epg.js
-        bind:
-          create_host_path: false
+      # - type: bind
+      #   source: /mnt/zfs-01-ssd/apps/ministra/custom-c/epg.js
+      #   target: /var/www/html/stalker_portal/c/epg.js
+      #   bind:
+      #     create_host_path: false
     #   - type: bind
     #     source: /mnt/zfs-01-ssd/apps/ministra/custom-c/player.js
     #     target: /var/www/html/stalker_portal/c/player.js
