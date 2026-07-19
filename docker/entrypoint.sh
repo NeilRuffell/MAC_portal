@@ -65,6 +65,24 @@ if [ "$BUILD_STATUS" -ne 0 ]; then
   echo "WARNING: deployment returned ${BUILD_STATUS}; starting Apache anyway."
 fi
 
+echo "Patching M3U tv-chno import..."
+M3U_CONTROLLER="${PORTAL_ROOT}/admin/src/Controller/TvChannelsController.php"
+php -r '
+$file = $argv[1];
+$code = file_get_contents($file);
+$marker = "\$result[\"number\"] = \$result[\"chno\"];";
+if (strpos($code, $marker) !== false) {
+    exit(0);
+}
+$needle = "        return \$result;\n    }\n    public function save_m3u_item()";
+$replacement = "        if (isset(\$result[\"chno\"])) {\n            \$result[\"number\"] = \$result[\"chno\"];\n        }\n        return \$result;\n    }\n    public function save_m3u_item()";
+if (strpos($code, $needle) === false) {
+    fwrite(STDERR, "Unable to patch M3U tv-chno import: parseInfoRow return point not found\n");
+    exit(1);
+}
+file_put_contents($file, str_replace($needle, $replacement, $code));
+' "$M3U_CONTROLLER" || exit 1
+
 echo "Starting services..."
 service memcached start || true
 service apache2 stop || true
