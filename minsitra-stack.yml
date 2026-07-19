@@ -16,7 +16,7 @@ services:
       - stalker-net
 
   stalker-portal:
-    image: ghcr.io/neilruffell/mac-portal:main-menu-data-format
+    image: ghcr.io/neilruffell/mac-portal:master
     platform: linux/amd64
     container_name: stalker-portal
     restart: unless-stopped
@@ -33,26 +33,26 @@ services:
     ports:
       - "34080:88"
     volumes:
-      - type: bind
-        source: /mnt/zfs-01-ssd/apps/ministra/custom-c/tv.js
-        target: /var/www/html/stalker_portal/c/tv.js
-        bind:
-          create_host_path: false
+    #   - type: bind
+    #     source: /mnt/zfs-01-ssd/apps/ministra/custom-c/tv.js
+    #     target: /var/www/html/stalker_portal/c/tv.js
+    #     bind:
+    #       create_host_path: false
       - type: bind
         source: /mnt/zfs-01-ssd/apps/ministra/custom-c/epg.js
         target: /var/www/html/stalker_portal/c/epg.js
         bind:
           create_host_path: false
-      - type: bind
-        source: /mnt/zfs-01-ssd/apps/ministra/custom-c/player.js
-        target: /var/www/html/stalker_portal/c/player.js
-        bind:
-          create_host_path: false
-      - type: bind
-        source: /mnt/zfs-01-ssd/apps/ministra/custom-c/template
-        target: /var/www/html/stalker_portal/c/template
-        bind:
-          create_host_path: false
+    #   - type: bind
+    #     source: /mnt/zfs-01-ssd/apps/ministra/custom-c/player.js
+    #     target: /var/www/html/stalker_portal/c/player.js
+    #     bind:
+    #       create_host_path: false
+    #   - type: bind
+    #     source: /mnt/zfs-01-ssd/apps/ministra/custom-c/template
+    #     target: /var/www/html/stalker_portal/c/template
+    #     bind:
+    #       create_host_path: false
     networks:
       - stalker-net
 
