@@ -32,7 +32,7 @@ services:
       LANGUAGE: "en"
     ports:
       - "34080:88"
-    volumes:
+    # volumes:
     #   - type: bind
     #     source: /mnt/zfs-01-ssd/apps/ministra/custom-c/tv.js
     #     target: /var/www/html/stalker_portal/c/tv.js
