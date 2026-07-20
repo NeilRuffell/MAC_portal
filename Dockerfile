@@ -45,27 +45,16 @@ RUN wget https://downloads.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-
 RUN rm -rf /var/www/html/*
 COPY . /var/www/html/stalker_portal/
 
-# 4. Download, verify, and install a PHP 7.0 compatible Phing version
-RUN bash -c 'for version in 2.16.4 2.16.3 2.16.2 2.16.1 2.16.0 2.15.2; do \
-      echo "Trying Phing version $version..."; \
-      if wget -q -O phing.phar "https://github.com/phingofficial/phing/releases/download/$version/phing-$version.phar" || \
-         wget -q -O phing.phar "https://www.phing.info/get/phing-$version.phar"; then \
-        if php phing.phar -version > /dev/null 2>&1; then \
-          echo "Successfully verified Phing version $version!"; \
-          mv phing.phar /usr/local/bin/phing; \
-          chmod +x /usr/local/bin/phing; \
-          exit 0; \
-        else \
-          echo "Phing version $version is not compatible with PHP 7.0."; \
-          rm -f phing.phar; \
-        fi; \
-      else \
-        echo "Phing version $version download failed."; \
-        rm -f phing.phar; \
+# 4. Download and install a stable legacy Phing version (2.13.x/2.12.x) compatible with PHP 7.0
+RUN bash -c 'for version in 2.13.0 2.12.0 2.11.0; do \
+      echo "Trying legacy Phing version $version..."; \
+      if wget -q -O /usr/local/bin/phing "https://www.phing.info/get/phing-$version.phar"; then \
+        chmod +x /usr/local/bin/phing; \
+        echo "Successfully installed Phing $version!"; \
+        exit 0; \
       fi; \
     done; \
-    echo "ERROR: No compatible Phing version could be downloaded and verified."; \
-    exit 1'
+    echo "ERROR: Failed to download legacy Phing." && exit 1'
 
 # 5. Enable Apache rewrite module and AllowOverride All for .htaccess routing
 RUN a2enmod rewrite \
