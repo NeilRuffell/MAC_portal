@@ -132,7 +132,7 @@ class Openweathermap extends WeatherProvider
 
     private function updateCurrentById($id){
 
-        $url = 'http://api.openweathermap.org/data/2.5/weather?id='.$id.'&units=metric';
+        $url = 'http://api.openweathermap.org/data/2.5/weather?id='.$id.'&units=metric&appid='.$this->appid;
 
         $content = file_get_contents(
             $url,
@@ -169,7 +169,7 @@ class Openweathermap extends WeatherProvider
             }
         }
 
-        $url = 'http://api.openweathermap.org/data/2.5/group?id='.implode(',', $ids).'&units=metric';
+        $url = 'http://api.openweathermap.org/data/2.5/group?id='.implode(',', $ids).'&units=metric&appid='.$this->appid;
 
         $content = file_get_contents(
             $url,
@@ -353,7 +353,7 @@ class Openweathermap extends WeatherProvider
 
     private function updateForecastById($id){
 
-        $url = 'http://api.openweathermap.org/data/2.5/forecast?id='.$id.'&units=metric';
+        $url = 'http://api.openweathermap.org/data/2.5/forecast?id='.$id.'&units=metric&appid='.$this->appid;
 
         $content = file_get_contents(
             $url,
