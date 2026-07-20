@@ -1,14 +1,14 @@
 FROM ghcr.io/neilruffell/stalker-portal-base:latest
 
-# 1. Temporarily save SlaSerX's library and vendor folders
+# 1. Temporarily save SlaSerX's library and admin folders
 RUN bash -c ' \
     if [ -d /var/www/html/stalker_portal/server/Lib ]; then \
         mv /var/www/html/stalker_portal/server/Lib /tmp/base-server-lib; \
     elif [ -d /var/www/html/stalker_portal/server/lib ]; then \
         mv /var/www/html/stalker_portal/server/lib /tmp/base-server-lib; \
     fi; \
-    if [ -d /var/www/html/stalker_portal/admin/vendor ]; then \
-        mv /var/www/html/stalker_portal/admin/vendor /tmp/admin_vendor; \
+    if [ -d /var/www/html/stalker_portal/admin ]; then \
+        mv /var/www/html/stalker_portal/admin /tmp/base-admin; \
     fi'
 
 # 2. Wipe the old files completely so ONLY your code is used
@@ -17,7 +17,7 @@ RUN rm -rf /var/www/html/*
 # 3. Copy your clean repository code
 COPY . /var/www/html/stalker_portal/
 
-# 4. Restore the dependencies, merging SlaSerX's library files (like funcs) without overwriting yours
+# 4. Restore the dependencies, merging SlaSerX's library and admin files without overwriting yours
 RUN bash -c ' \
     if [ -d /tmp/base-server-lib ]; then \
         # Overwrite the core folder completely (as it must match the PHP 7.0 engine) \
@@ -28,9 +28,9 @@ RUN bash -c ' \
         # Merge all other directories (like funcs) without overwriting your custom files \
         cp -an /tmp/base-server-lib/* /var/www/html/stalker_portal/server/lib/; \
     fi; \
-    if [ -d /tmp/admin_vendor ]; then \
-        rm -rf /var/www/html/stalker_portal/admin/vendor; \
-        mv /tmp/admin_vendor /var/www/html/stalker_portal/admin/vendor; \
+    if [ -d /tmp/base-admin ]; then \
+        # Merge SlaSerX admin files (vendor, functions.php) without overwriting your custom files \
+        cp -an /tmp/base-admin/* /var/www/html/stalker_portal/admin/; \
     fi'
 
 # 5. Create Lib symlink for case-insensitive autoloader compatibility
