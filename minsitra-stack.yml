@@ -32,7 +32,7 @@ services:
       LANGUAGE: "en"
     ports:
       - "34080:88"
-    # volumes:
+    volumes:
     #   - type: bind
     #     source: /mnt/zfs-01-ssd/apps/ministra/custom-c/tv.js
     #     target: /var/www/html/stalker_portal/c/tv.js
@@ -53,6 +53,11 @@ services:
     #     target: /var/www/html/stalker_portal/c/template
     #     bind:
     #       create_host_path: false
+       - type: bind
+         source: /mnt/zfs-01-ssd/apps/ministra/custom-server/config.ini
+         target: /var/www/html/stalker_portal/server/config.ini
+         bind:
+           create_host_path: false
     networks:
       - stalker-net
 
