@@ -1,4 +1,4 @@
-FROM slaserx/stalker-portal:latest
+FROM ghcr.io/neilruffell/stalker-portal-base:latest
 
 COPY docker/entrypoint.sh /usr/local/bin/mac-portal-entrypoint
 COPY docker/patch-m3u-tv-chno.php /usr/local/bin/patch-m3u-tv-chno.php
