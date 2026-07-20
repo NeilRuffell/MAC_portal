@@ -45,6 +45,11 @@ RUN wget https://downloads.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-
 RUN rm -rf /var/www/html/*
 COPY . /var/www/html/stalker_portal/
 
+RUN mkdir -p /var/www/html/stalker_portal/screenshots \
+             /var/www/html/stalker_portal/misc/logos \
+             /var/www/html/stalker_portal/misc/audio_covers
+
+
 # 4. Download and install a stable legacy Phing version (2.13.x/2.12.x) compatible with PHP 7.0
 RUN bash -c 'for version in 2.13.0 2.12.0 2.11.0; do \
       echo "Trying legacy Phing version $version..."; \
