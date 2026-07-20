@@ -1,11 +1,11 @@
 FROM ghcr.io/neilruffell/stalker-portal-base:latest
 
-# 1. Temporarily save the core files (checking both Lib and lib casing) and vendor dependencies
+# 1. Temporarily save SlaSerX's library and vendor folders
 RUN bash -c ' \
-    if [ -d /var/www/html/stalker_portal/server/Lib/core ]; then \
-        mv /var/www/html/stalker_portal/server/Lib/core /tmp/base-server-lib-core; \
-    elif [ -d /var/www/html/stalker_portal/server/lib/core ]; then \
-        mv /var/www/html/stalker_portal/server/lib/core /tmp/base-server-lib-core; \
+    if [ -d /var/www/html/stalker_portal/server/Lib ]; then \
+        mv /var/www/html/stalker_portal/server/Lib /tmp/base-server-lib; \
+    elif [ -d /var/www/html/stalker_portal/server/lib ]; then \
+        mv /var/www/html/stalker_portal/server/lib /tmp/base-server-lib; \
     fi; \
     if [ -d /var/www/html/stalker_portal/admin/vendor ]; then \
         mv /var/www/html/stalker_portal/admin/vendor /tmp/admin_vendor; \
@@ -17,11 +17,16 @@ RUN rm -rf /var/www/html/*
 # 3. Copy your clean repository code
 COPY . /var/www/html/stalker_portal/
 
-# 4. Restore the saved core files and vendor dependencies to your portal folder
+# 4. Restore the dependencies, merging SlaSerX's library files (like funcs) without overwriting yours
 RUN bash -c ' \
-    if [ -d /tmp/base-server-lib-core ]; then \
+    if [ -d /tmp/base-server-lib ]; then \
+        # Overwrite the core folder completely (as it must match the PHP 7.0 engine) \
         rm -rf /var/www/html/stalker_portal/server/lib/core; \
-        mv /tmp/base-server-lib-core /var/www/html/stalker_portal/server/lib/core; \
+        if [ -d /tmp/base-server-lib/core ]; then \
+            cp -a /tmp/base-server-lib/core /var/www/html/stalker_portal/server/lib/core; \
+        fi; \
+        # Merge all other directories (like funcs) without overwriting your custom files \
+        cp -an /tmp/base-server-lib/* /var/www/html/stalker_portal/server/lib/; \
     fi; \
     if [ -d /tmp/admin_vendor ]; then \
         rm -rf /var/www/html/stalker_portal/admin/vendor; \
