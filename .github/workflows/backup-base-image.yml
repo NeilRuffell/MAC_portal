@@ -1,0 +1,27 @@
+name: Backup Base Image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  packages: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull external image
+        run: docker pull slaserx/stalker-portal:latest
+
+      - name: Tag base image
+        run: docker tag slaserx/stalker-portal:latest ghcr.io/neilruffell/stalker-portal-base:latest
+
+      - name: Push base image
+        run: docker push ghcr.io/neilruffell/stalker-portal-base:latest

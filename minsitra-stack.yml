@@ -16,7 +16,7 @@ services:
       - stalker-net
 
   stalker-portal:
-    image: ghcr.io/neilruffell/mac-portal:m3u-tvg-chno
+    image: ghcr.io/neilruffell/mac-portal:master
     platform: linux/amd64
     container_name: stalker-portal
     restart: unless-stopped
