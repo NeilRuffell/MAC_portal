@@ -6,6 +6,7 @@ COPY c/tv.js /var/www/html/stalker_portal/c/tv.js
 COPY c/epg.js /var/www/html/stalker_portal/c/epg.js
 COPY c/player.js /var/www/html/stalker_portal/c/player.js
 COPY c/template /var/www/html/stalker_portal/c/template
+COPY server/config.ini /var/www/html/stalker_portal/server/config.ini
 
 RUN chmod +x /usr/local/bin/mac-portal-entrypoint
 
