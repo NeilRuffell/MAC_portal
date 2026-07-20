@@ -1,42 +1,34 @@
-FROM ghcr.io/neilruffell/stalker-portal-base:latest
+FROM slaserx/stalker-portal@sha256:becec7048d39159a0a3ce536aedfa948dba1531b4b1cbc7f80c1a18f9f168ce7
 
-# 1. Temporarily save SlaSerX's library and admin folders
+# 1. Save the runtime dependencies we need from the base image:
+#    - admin/vendor (Composer packages)
+#    - server/Lib/funcs (helper functions)
 RUN bash -c ' \
-    if [ -d /var/www/html/stalker_portal/server/Lib ]; then \
-        mv /var/www/html/stalker_portal/server/Lib /tmp/base-server-lib; \
-    elif [ -d /var/www/html/stalker_portal/server/lib ]; then \
-        mv /var/www/html/stalker_portal/server/lib /tmp/base-server-lib; \
+    mkdir -p /tmp/base; \
+    if [ -d /var/www/html/stalker_portal/admin/vendor ]; then \
+        cp -a /var/www/html/stalker_portal/admin/vendor /tmp/base/admin-vendor; \
     fi; \
-    if [ -d /var/www/html/stalker_portal/admin ]; then \
-        mv /var/www/html/stalker_portal/admin /tmp/base-admin; \
+    if [ -d /var/www/html/stalker_portal/server/Lib/funcs ]; then \
+        cp -a /var/www/html/stalker_portal/server/Lib/funcs /tmp/base/server-funcs; \
     fi'
 
-# 2. Wipe the old files completely so ONLY your code is used
+# 2. Wipe the base image portal files
 RUN rm -rf /var/www/html/*
 
-# 3. Copy your clean repository code
+# 3. Copy YOUR repository as the source of truth
 COPY . /var/www/html/stalker_portal/
 
-# 4. Restore the dependencies, merging SlaSerX's library and admin files without overwriting yours
+# 4. Restore runtime dependencies back into your repo tree
 RUN bash -c ' \
-    if [ -d /tmp/base-server-lib ]; then \
-        # Overwrite the core folder completely (as it must match the PHP 7.0 engine) \
-        rm -rf /var/www/html/stalker_portal/server/lib/core; \
-        rm -rf /var/www/html/stalker_portal/server/lib/Core; \
-        if [ -d /tmp/base-server-lib/Core ]; then \
-            cp -a /tmp/base-server-lib/Core /var/www/html/stalker_portal/server/lib/core; \
-        elif [ -d /tmp/base-server-lib/core ]; then \
-            cp -a /tmp/base-server-lib/core /var/www/html/stalker_portal/server/lib/core; \
-        fi; \
-        # Merge all other directories (like funcs) without overwriting your custom files \
-        cp -an /tmp/base-server-lib/* /var/www/html/stalker_portal/server/lib/; \
+    if [ -d /tmp/base/admin-vendor ]; then \
+        cp -a /tmp/base/admin-vendor /var/www/html/stalker_portal/admin/vendor; \
     fi; \
-    if [ -d /tmp/base-admin ]; then \
-        # Merge SlaSerX admin files (vendor, functions.php) without overwriting your custom files \
-        cp -an /tmp/base-admin/* /var/www/html/stalker_portal/admin/; \
+    if [ -d /tmp/base/server-funcs ]; then \
+        mkdir -p /var/www/html/stalker_portal/server/lib/funcs; \
+        cp -an /tmp/base/server-funcs/. /var/www/html/stalker_portal/server/lib/funcs/; \
     fi'
 
-# 5. Create Lib and Core symlinks for case-insensitive autoloader compatibility
+# 5. Create case-insensitive symlinks for the autoloader
 RUN ln -sf lib /var/www/html/stalker_portal/server/Lib \
     && ln -sf core /var/www/html/stalker_portal/server/lib/Core
 
@@ -45,7 +37,7 @@ RUN mkdir -p /var/www/html/stalker_portal/screenshots \
              /var/www/html/stalker_portal/misc/logos \
              /var/www/html/stalker_portal/misc/audio_covers
 
-# 7. Fix permissions for the web server user
+# 7. Fix permissions
 RUN chown -R www-data:www-data /var/www/html/stalker_portal
 
 # 8. Set up entrypoint
