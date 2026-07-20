@@ -41,23 +41,25 @@ RUN wget https://downloads.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-
     && echo "zend_extension = /usr/lib/php/20151012/ioncube_loader_lin_7.0.so" > /etc/php/7.0/cli/conf.d/00-ioncube.ini \
     && rm -rf ioncube_loaders_lin_x86-64.tar.gz ioncube
 
-# 3. Download and install Phing 2.15.2 globally (required for deployment scripts)
-RUN wget https://github.com/phingofficial/phing/releases/download/2.15.2/phing-2.15.2.phar \
-    && mv phing-2.15.2.phar /usr/local/bin/phing \
-    && chmod +x /usr/local/bin/phing
-
-# 4. Enable Apache rewrite module and AllowOverride All for .htaccess routing
-RUN a2enmod rewrite \
-    && sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf
-
-# 5. Enable PHP short_open_tag (required for Stalker Portal template files)
-RUN sed -i "s/short_open_tag = Off/short_open_tag = On/g" /etc/php/7.0/apache2/php.ini \
-    && sed -i "s/short_open_tag = Off/short_open_tag = On/g" /etc/php/7.0/cli/php.ini
-
-# 6. Clean default web root and copy repository
+# 3. Clean default web root and copy repository files (so composer is available)
 RUN rm -rf /var/www/html/*
 COPY . /var/www/html/stalker_portal/
 
+# 4. Install Phing 2.15.2 via Composer and symlink it globally
+RUN mkdir -p /opt/phing \
+    && cd /opt/phing \
+    && php /var/www/html/stalker_portal/deploy/composer/composer.phar require phing/phing:2.15.2 --no-interaction \
+    && ln -s /opt/phing/vendor/bin/phing /usr/local/bin/phing
+
+# 5. Enable Apache rewrite module and AllowOverride All for .htaccess routing
+RUN a2enmod rewrite \
+    && sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf
+
+# 6. Enable PHP short_open_tag (required for Stalker Portal template files)
+RUN sed -i "s/short_open_tag = Off/short_open_tag = On/g" /etc/php/7.0/apache2/php.ini \
+    && sed -i "s/short_open_tag = Off/short_open_tag = On/g" /etc/php/7.0/cli/php.ini
+
+# 7. Setup entrypoint
 COPY docker/entrypoint.sh /usr/local/bin/mac-portal-entrypoint
 RUN chmod +x /usr/local/bin/mac-portal-entrypoint
 
