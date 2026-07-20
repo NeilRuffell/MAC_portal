@@ -2089,7 +2089,7 @@ class TvChannelsController extends \Controller\BaseStalkerController {
                     $tmp = substr($line, 8);
 
                     $data[$num]['name'] = end(explode(',', $tmp, 2));
-                    if (preg_match('/(?:tvg?-)?chno\s*=\s*["\']?(\d+)["\']?/i', $tmp, $matches)) {
+                    if (preg_match('/(?:^|\s)(?:tv-chno|tvg-chno|chno)\s*=\s*["\']?(\d+)["\']?/i', $tmp, $matches)) {
                         $data[$num]['number'] = (int) $matches[1];
                     }
 

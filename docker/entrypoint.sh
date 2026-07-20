@@ -65,6 +65,10 @@ if [ "$BUILD_STATUS" -ne 0 ]; then
   echo "WARNING: deployment returned ${BUILD_STATUS}; starting Apache anyway."
 fi
 
+echo "Patching M3U tv-chno import..."
+M3U_CONTROLLER="${PORTAL_ROOT}/admin/src/Controller/TvChannelsController.php"
+php /usr/local/bin/patch-m3u-tv-chno.php "$PORTAL_ROOT" "$M3U_CONTROLLER" || exit 1
+
 echo "Starting services..."
 service memcached start || true
 service apache2 stop || true
