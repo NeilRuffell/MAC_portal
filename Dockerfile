@@ -1,12 +1,12 @@
 FROM slaserx/stalker-portal@sha256:becec7048d39159a0a3ce536aedfa948dba1531b4b1cbc7f80c1a18f9f168ce7
 
 # 1. Save the runtime dependencies we need from the base image:
-#    - admin/vendor (Composer packages)
+#    - entire admin dir (for functions.php, vendor, config/, etc.)
 #    - server/Lib/funcs (helper functions)
 RUN bash -c ' \
     mkdir -p /tmp/base; \
-    if [ -d /var/www/html/stalker_portal/admin/vendor ]; then \
-        cp -a /var/www/html/stalker_portal/admin/vendor /tmp/base/admin-vendor; \
+    if [ -d /var/www/html/stalker_portal/admin ]; then \
+        cp -a /var/www/html/stalker_portal/admin /tmp/base/admin; \
     fi; \
     if [ -d /var/www/html/stalker_portal/server/Lib/funcs ]; then \
         cp -a /var/www/html/stalker_portal/server/Lib/funcs /tmp/base/server-funcs; \
@@ -19,9 +19,10 @@ RUN rm -rf /var/www/html/*
 COPY . /var/www/html/stalker_portal/
 
 # 4. Restore runtime dependencies back into your repo tree
+#    cp -n (no-overwrite) means YOUR repo files always win
 RUN bash -c ' \
-    if [ -d /tmp/base/admin-vendor ]; then \
-        cp -a /tmp/base/admin-vendor /var/www/html/stalker_portal/admin/vendor; \
+    if [ -d /tmp/base/admin ]; then \
+        cp -an /tmp/base/admin/. /var/www/html/stalker_portal/admin/; \
     fi; \
     if [ -d /tmp/base/server-funcs ]; then \
         mkdir -p /var/www/html/stalker_portal/server/lib/funcs; \
