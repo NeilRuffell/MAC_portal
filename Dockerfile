@@ -22,7 +22,10 @@ RUN bash -c ' \
     if [ -d /tmp/base-server-lib ]; then \
         # Overwrite the core folder completely (as it must match the PHP 7.0 engine) \
         rm -rf /var/www/html/stalker_portal/server/lib/core; \
-        if [ -d /tmp/base-server-lib/core ]; then \
+        rm -rf /var/www/html/stalker_portal/server/lib/Core; \
+        if [ -d /tmp/base-server-lib/Core ]; then \
+            cp -a /tmp/base-server-lib/Core /var/www/html/stalker_portal/server/lib/core; \
+        elif [ -d /tmp/base-server-lib/core ]; then \
             cp -a /tmp/base-server-lib/core /var/www/html/stalker_portal/server/lib/core; \
         fi; \
         # Merge all other directories (like funcs) without overwriting your custom files \
@@ -33,8 +36,9 @@ RUN bash -c ' \
         cp -an /tmp/base-admin/* /var/www/html/stalker_portal/admin/; \
     fi'
 
-# 5. Create Lib symlink for case-insensitive autoloader compatibility
-RUN ln -sf lib /var/www/html/stalker_portal/server/Lib
+# 5. Create Lib and Core symlinks for case-insensitive autoloader compatibility
+RUN ln -sf lib /var/www/html/stalker_portal/server/Lib \
+    && ln -sf core /var/www/html/stalker_portal/server/lib/Core
 
 # 6. Pre-create directories required by Phing
 RUN mkdir -p /var/www/html/stalker_portal/screenshots \
