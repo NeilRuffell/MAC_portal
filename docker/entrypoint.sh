@@ -49,7 +49,9 @@ sed -i 's|command=".*change_permissions.php.*"|command="echo Skipping change_per
 
 echo "Disabling obsolete Composer dependency enforcement..."
 echo '{}' > "${PORTAL_ROOT}/deploy/composer.json"
-echo '{}' > "${PORTAL_ROOT}/deploy/ministra/composer.json"
+if [ -d "${PORTAL_ROOT}/deploy/ministra" ]; then
+  echo '{}' > "${PORTAL_ROOT}/deploy/ministra/composer.json"
+fi
 
 echo "Reducing old PHP notice noise..."
 if ! grep -q "E_DEPRECATED" "${PORTAL_ROOT}/admin/app.php"; then

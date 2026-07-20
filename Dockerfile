@@ -2,6 +2,7 @@ FROM ubuntu:16.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# 1. Install official Apache, PHP 7.0, all extensions, Node.js, and locales
 RUN apt-get update && apt-get install -y \
     apache2 \
     software-properties-common \
@@ -15,15 +16,24 @@ RUN apt-get update && apt-get install -y \
     php7.0-mbstring \
     php7.0-zip \
     php7.0-soap \
-    memcached \
+    php7.0-intl \
+    php7.0-tidy \
+    php7.0-xsl \
     php-memcached \
+    php-imagick \
+    php-geoip \
+    memcached \
     wget \
     unzip \
     curl \
     mysql-client \
     git \
+    nodejs \
+    npm \
+    locales \
     && rm -rf /var/lib/apt/lists/*
 
+# 2. Download and install the official IonCube Loader
 RUN wget https://downloads.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz \
     && tar -xvzf ioncube_loaders_lin_x86-64.tar.gz \
     && cp ioncube/ioncube_loader_lin_7.0.so /usr/lib/php/20151012/ \
@@ -31,8 +41,20 @@ RUN wget https://downloads.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-
     && echo "zend_extension = /usr/lib/php/20151012/ioncube_loader_lin_7.0.so" > /etc/php/7.0/cli/conf.d/00-ioncube.ini \
     && rm -rf ioncube_loaders_lin_x86-64.tar.gz ioncube
 
-RUN a2enmod rewrite
+# 3. Download and install Phing 2.17.4 globally (required for deployment scripts)
+RUN wget https://github.com/phingofficial/phing/releases/download/2.17.4/phing-2.17.4.phar \
+    && mv phing-2.17.4.phar /usr/local/bin/phing \
+    && chmod +x /usr/local/bin/phing
 
+# 4. Enable Apache rewrite module and AllowOverride All for .htaccess routing
+RUN a2enmod rewrite \
+    && sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf
+
+# 5. Enable PHP short_open_tag (required for Stalker Portal template files)
+RUN sed -i "s/short_open_tag = Off/short_open_tag = On/g" /etc/php/7.0/apache2/php.ini \
+    && sed -i "s/short_open_tag = Off/short_open_tag = On/g" /etc/php/7.0/cli/php.ini
+
+# 6. Clean default web root and copy repository
 RUN rm -rf /var/www/html/*
 COPY . /var/www/html/stalker_portal/
 
