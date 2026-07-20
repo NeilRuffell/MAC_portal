@@ -1,12 +1,14 @@
 FROM ghcr.io/neilruffell/stalker-portal-base:latest
 
-# 1. Temporarily save the core files and vendor dependencies from the base image's root path
+# 1. Temporarily save the core files (checking both Lib and lib casing) and vendor dependencies
 RUN bash -c ' \
-    if [ -d /var/www/html/server/lib/core ]; then \
-        mv /var/www/html/server/lib/core /tmp/base-server-lib-core; \
+    if [ -d /var/www/html/stalker_portal/server/Lib/core ]; then \
+        mv /var/www/html/stalker_portal/server/Lib/core /tmp/base-server-lib-core; \
+    elif [ -d /var/www/html/stalker_portal/server/lib/core ]; then \
+        mv /var/www/html/stalker_portal/server/lib/core /tmp/base-server-lib-core; \
     fi; \
-    if [ -d /var/www/html/admin/vendor ]; then \
-        mv /var/www/html/admin/vendor /tmp/admin_vendor; \
+    if [ -d /var/www/html/stalker_portal/admin/vendor ]; then \
+        mv /var/www/html/stalker_portal/admin/vendor /tmp/admin_vendor; \
     fi'
 
 # 2. Wipe the old files completely so ONLY your code is used
