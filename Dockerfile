@@ -41,15 +41,31 @@ RUN wget https://downloads.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-
     && echo "zend_extension = /usr/lib/php/20151012/ioncube_loader_lin_7.0.so" > /etc/php/7.0/cli/conf.d/00-ioncube.ini \
     && rm -rf ioncube_loaders_lin_x86-64.tar.gz ioncube
 
-# 3. Clean default web root and copy repository files (so composer is available)
+# 3. Clean default web root and copy repository files
 RUN rm -rf /var/www/html/*
 COPY . /var/www/html/stalker_portal/
 
-# 4. Install Phing 2.15.2 via Composer and symlink it globally
-RUN mkdir -p /opt/phing \
-    && cd /opt/phing \
-    && php /var/www/html/stalker_portal/deploy/composer/composer.phar require phing/phing:2.15.2 --no-interaction \
-    && ln -s /opt/phing/vendor/bin/phing /usr/local/bin/phing
+# 4. Download, verify, and install a PHP 7.0 compatible Phing version
+RUN bash -c 'for version in 2.16.4 2.16.3 2.16.2 2.16.1 2.16.0 2.15.2; do \
+      echo "Trying Phing version $version..."; \
+      if wget -q -O phing.phar "https://github.com/phingofficial/phing/releases/download/$version/phing-$version.phar" || \
+         wget -q -O phing.phar "https://www.phing.info/get/phing-$version.phar"; then \
+        if php phing.phar -version > /dev/null 2>&1; then \
+          echo "Successfully verified Phing version $version!"; \
+          mv phing.phar /usr/local/bin/phing; \
+          chmod +x /usr/local/bin/phing; \
+          exit 0; \
+        else \
+          echo "Phing version $version is not compatible with PHP 7.0."; \
+          rm -f phing.phar; \
+        fi; \
+      else \
+        echo "Phing version $version download failed."; \
+        rm -f phing.phar; \
+      fi; \
+    done; \
+    echo "ERROR: No compatible Phing version could be downloaded and verified."; \
+    exit 1'
 
 # 5. Enable Apache rewrite module and AllowOverride All for .htaccess routing
 RUN a2enmod rewrite \
